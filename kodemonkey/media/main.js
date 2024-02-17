@@ -4,6 +4,10 @@
     const vscode = acquireVsCodeApi();
     const oldState = vscode.getState() || { messages: ["Initial message"] };
 
+    document.getElementById('myForm').addEventListener('submit', function(event) {
+        event.preventDefault();
+      });
+
     // when user clicks submit button
     document.querySelector('.submit-button').addEventListener('click', () => {
 

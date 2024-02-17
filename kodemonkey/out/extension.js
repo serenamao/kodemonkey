@@ -193,7 +193,7 @@ async function chat(userInput) {
             },
             ...chatHistory,
         ],
-        model: "gpt-4-0125-preview",
+        model: "gpt-3.5-turbo",
     });
     const gptOutput = completion.choices[0].message.content;
     if (gptOutput) {
@@ -285,25 +285,9 @@ class ColorsViewProvider {
                 case "clear":
                     chatHistory = [];
                     break;
-                // case 'colorSelected':
-                // 	{
-                // 		vscode.window.activeTextEditor?.insertSnippet(new vscode.SnippetString(`#${data.value}`));
-                // 		break;
-                // 	}
             }
         });
     }
-    // public addColor() {
-    // 	if (this._view) {
-    // 		this._view.show?.(true); // `show` is not implemented in 1.49 but is for 1.50 insiders
-    // 		this._view.webview.postMessage({ type: 'addColor' });
-    // 	}
-    // }
-    // public clearColors() {
-    // 	if (this._view) {
-    // 		this._view.webview.postMessage({ type: 'clearColors' });
-    // 	}
-    // }
     _getHtmlForWebview(webview) {
         // Get the local path to main script run in the webview, then convert it to a uri we can use in the webview.
         const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, "media", "main.js"));
@@ -336,8 +320,10 @@ class ColorsViewProvider {
 
             <body>
 			<p>Start your chat here!</p>
+				<form id="myForm">
 				<input type="text" class="user-input" placeholder="What's your question">
                 <button type="submit" class="submit-button">ask kodemonkey</button>
+				</form>
 				<button class="clear-button">restart from scratch</button>
 
 
