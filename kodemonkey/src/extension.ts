@@ -89,6 +89,17 @@ async function getLinesWithNumbers() {
   return textWithLineNumbers;
 }
 
+function executeCommandLines(actions: string[]) {
+
+	// Join the commands together with &&
+	const command = actions.join(' && ');
+  
+	// Execute the command
+	executeCommandLine(command);
+  }
+
+
+
 async function executeCommandLine(action: any) {
   const { path, contents } = action;
 
@@ -154,7 +165,6 @@ async function parseGPTOutput(jsonObject: any) {
       kodemonkey.appendLine(
         `Executing command line at path: ${func["path"]} with contents: ${func["contents"]}...`
       );
-      executeCommandLine(func);
     }
   }
 }
@@ -212,11 +222,12 @@ async function chat(userInput: any) {
       },
       ...(chatHistory as any[]),
     ],
-    model: "gpt-3.5-turbo",
+    model: "gpt-4",
   });
   const gptOutput = completion.choices[0].message.content;
   if (gptOutput) {
     // prints GPT output to custom output
+	kodemonkey.appendLine("GPT OUTPUT: " + gptOutput);
     chatHistory.push({ role: "assistant", content: gptOutput });
     // kodemonkey.appendLine(JSON.stringify(chatHistory));
 
