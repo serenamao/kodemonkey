@@ -278,7 +278,7 @@ class ColorsViewProvider {
                             type: "chatResult",
                             text: "kodemonkey: " + response,
                         });
-                        kodemonkey.appendLine("Chat sent!");
+                        kodemonkey.appendLine("chat sent :)");
                     }
                     break;
                 }
