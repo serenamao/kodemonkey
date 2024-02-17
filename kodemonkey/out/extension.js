@@ -209,7 +209,7 @@ async function parseGPTOutput(jsonObject) {
             kodemonkey.appendLine(`HELLO Executing command line at path: ${func["path"]} with contents: ${func["contents"]}...`);
             // get concrete path
             if (func["action"] === "executeCommandLine") {
-                const concretePath = func["path"].replace(".", "/Users/tomqlam/workspaces/sandbox");
+                const concretePath = func["path"].replace(".", vscode.workspace.workspaceFolders?.[0]?.uri.fsPath);
                 kodemonkey.appendLine(`Concrete path: ${concretePath}`);
                 await executeCommandLine({ ...func, path: concretePath });
                 kodemonkey.appendLine(`GOODBYE...`);
