@@ -30,6 +30,8 @@ exports.activate = void 0;
 const vscode = __importStar(require("vscode"));
 const path = __importStar(require("path"));
 const openai_1 = __importDefault(require("openai"));
+const child_process_1 = require("child_process");
+const process = __importStar(require("process"));
 let webviewViewGlobal;
 let chatHistory = []; // all message ever
 // custom terminal output channel
@@ -99,12 +101,34 @@ function executeCommandLines(actions) {
 }
 async function executeCommandLine(action) {
     const { path, contents } = action;
-    // Create a terminal if it doesn't exist
-    const terminal = vscode.window.createTerminal();
-    // Change to the specified directory
-    terminal.sendText(`cd ${path}`);
-    // Execute the command
-    terminal.sendText(contents);
+    kodemonkey.appendLine(`Executing command line at path: ${path} with contents: ${contents}...`);
+    const executeCommand = (cmd, cwd) => {
+        return new Promise((resolve, reject) => {
+            console.log(`Executing in directory: ${cwd}`); // Debug: log current working directory
+            const options = {
+                cwd,
+                env: { ...process.env, PATH: process.env.PATH } // Explicitly set PATH in environment
+            };
+            (0, child_process_1.exec)(cmd, options, (error, stdout, stderr) => {
+                if (error) {
+                    reject(`error: ${error.message}`);
+                    return;
+                }
+                if (stderr) {
+                    reject(`stderr: ${stderr}`);
+                    return;
+                }
+                resolve(stdout);
+            });
+        });
+    };
+    try {
+        const output = await executeCommand(contents, path);
+        console.log("Command execution completed successfully:", output);
+    }
+    catch (error) {
+        console.error("Command execution failed:", error);
+    }
 }
 async function parseGPTOutput(jsonObject) {
     jsonObject = jsonObject.replace(/```json|```/g, "");
@@ -144,8 +168,9 @@ async function parseGPTOutput(jsonObject) {
             modifyFile(func["path"] + func["name"], func["contents"]);
         }
         else if (func["action"] === "executeCommandLine") {
-            kodemonkey.appendLine(`Executing command line at path: ${func["path"]} with contents: ${func["contents"]}...`);
-            executeCommandLine(func);
+            kodemonkey.appendLine(`HELLO Executing command line at path: ${func["path"]} with contents: ${func["contents"]}...`);
+            await executeCommandLine(func);
+            kodemonkey.appendLine(`GOODBYE...`);
         }
     }
 }
@@ -329,7 +354,7 @@ class ColorsViewProvider {
 			<p>Start your chat here!</p>
 				<form id="myForm">
 				<input type="text" class="user-input" placeholder="What's your question">
-                <button type="submit" class="submit-button">ask kodemonkey</button>
+                <button type="submit" class="submit-button">ask BLAH</button>
 				</form>
 				<button class="clear-button">restart from scratch</button>
 

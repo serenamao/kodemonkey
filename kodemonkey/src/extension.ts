@@ -3,6 +3,9 @@ import * as path from "path";
 import OpenAI from "openai";
 import * as fs from "fs";
 import { json } from "stream/consumers";
+import { exec } from 'child_process';
+import * as process from 'process';
+
 let webviewViewGlobal: vscode.WebviewView | undefined;
 
 let chatHistory: any[] = []; // all message ever
@@ -91,27 +94,50 @@ async function getLinesWithNumbers() {
 
 function executeCommandLines(actions: string[]) {
 
-	// Join the commands together with &&
-	const command = actions.join(' && ');
-  
-	// Execute the command
-	executeCommandLine(command);
-  }
-
-
-
-async function executeCommandLine(action: any) {
-  const { path, contents } = action;
-
-  // Create a terminal if it doesn't exist
-  const terminal = vscode.window.createTerminal();
-
-  // Change to the specified directory
-  terminal.sendText(`cd ${path}`);
+  // Join the commands together with &&
+  const command = actions.join(' && ');
 
   // Execute the command
-  terminal.sendText(contents);
+  executeCommandLine(command);
 }
+
+
+
+async function executeCommandLine(action: any): Promise<void> {
+    const { path, contents } = action;
+
+    kodemonkey.appendLine(`Executing command line at path: ${path} with contents: ${contents}...`);
+  
+    const executeCommand = (cmd: string, cwd: string): Promise<string> => {
+      return new Promise((resolve, reject) => {
+        console.log(`Executing in directory: ${cwd}`); // Debug: log current working directory
+        
+        const options = {
+          cwd,
+          env: {...process.env, PATH: process.env.PATH} // Explicitly set PATH in environment
+        };
+  
+        exec(cmd, options, (error, stdout, stderr) => {
+          if (error) {
+            reject(`error: ${error.message}`);
+            return;
+          }
+          if (stderr) {
+            reject(`stderr: ${stderr}`);
+            return;
+          }
+          resolve(stdout);
+        });
+      });
+    };
+  
+    try {
+      const output = await executeCommand(contents, path);
+      console.log("Command execution completed successfully:", output);
+    } catch (error) {
+      console.error("Command execution failed:", error);
+    }
+  }
 
 async function parseGPTOutput(jsonObject: any) {
   jsonObject = jsonObject.replace(/```json|```/g, "");
@@ -123,7 +149,7 @@ async function parseGPTOutput(jsonObject: any) {
     // If an error is thrown, log it and return
 
     kodemonkey.appendLine("Invalid JSON:");
-	kodemonkey.appendLine(jsonObject);
+    kodemonkey.appendLine(jsonObject);
 
     return;
   }
@@ -149,23 +175,24 @@ async function parseGPTOutput(jsonObject: any) {
       createFile(func["path"] + func["name"], "");
     } else if (func["action"] === "createFile") {
       kodemonkey.appendLine(
-        `Creating file at path: ${func["path"] + func["name"]} with contents: ${
-          func["contents"]
+        `Creating file at path: ${func["path"] + func["name"]} with contents: ${func["contents"]
         }...`
       );
       createFile(func["path"] + func["name"], func["contents"]);
     } else if (func["action"] === "modifyFile") {
       kodemonkey.appendLine(
-        `Overwriting file at path: ${
-          func["path"] + func["name"]
+        `Overwriting file at path: ${func["path"] + func["name"]
         } with contents: ${func["contents"]}...`
       );
       modifyFile(func["path"] + func["name"], func["contents"]);
     } else if (func["action"] === "executeCommandLine") {
       kodemonkey.appendLine(
-        `Executing command line at path: ${func["path"]} with contents: ${func["contents"]}...`
+        `HELLO Executing command line at path: ${func["path"]} with contents: ${func["contents"]}...`
       );
-	  executeCommandLine(func);
+      await executeCommandLine(func);
+      kodemonkey.appendLine(
+        `GOODBYE...`
+      );
     }
   }
 }
@@ -228,7 +255,7 @@ async function chat(userInput: any) {
   const gptOutput = completion.choices[0].message.content;
   if (gptOutput) {
     // prints GPT output to custom output
-	kodemonkey.appendLine("GPT OUTPUT: " + gptOutput);
+    kodemonkey.appendLine("GPT OUTPUT: " + gptOutput);
     chatHistory.push({ role: "assistant", content: gptOutput });
     // kodemonkey.appendLine(JSON.stringify(chatHistory));
 
@@ -326,7 +353,7 @@ class ColorsViewProvider implements vscode.WebviewViewProvider {
 
   private _view?: vscode.WebviewView;
 
-  constructor(private readonly _extensionUri: vscode.Uri) {}
+  constructor(private readonly _extensionUri: vscode.Uri) { }
 
   public resolveWebviewView(
     webviewView: vscode.WebviewView,
@@ -358,9 +385,9 @@ class ColorsViewProvider implements vscode.WebviewViewProvider {
           }
           break;
         }
-		case "clear":
-			chatHistory = [];
-			break;
+        case "clear":
+          chatHistory = [];
+          break;
       }
     });
   }
@@ -410,7 +437,7 @@ class ColorsViewProvider implements vscode.WebviewViewProvider {
 			<p>Start your chat here!</p>
 				<form id="myForm">
 				<input type="text" class="user-input" placeholder="What's your question">
-                <button type="submit" class="submit-button">ask kodemonkey</button>
+                <button type="submit" class="submit-button">ask BLAH</button>
 				</form>
 				<button class="clear-button">restart from scratch</button>
 
