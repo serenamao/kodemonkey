@@ -30,6 +30,8 @@ exports.activate = void 0;
 const vscode = __importStar(require("vscode"));
 const path = __importStar(require("path"));
 const openai_1 = __importDefault(require("openai"));
+const child_process_1 = require("child_process");
+const process = __importStar(require("process"));
 let webviewViewGlobal;
 const agentPrompt = "Pretend you are a product manager telling me how to code a requested app. the app is an expense tracker with react, express, and mongodb. In each response, give me the description of a single step I should implement. I will respond with my intended changes to the code. Only say 2 sentences at a time. ";
 //  message history
@@ -106,26 +108,50 @@ async function getLinesWithNumbers() {
     }
     return textWithLineNumbers;
 }
-async function executeCommandLine(action, terminal) {
-    const { path, contents } = action;
-    // const terminal = vscode.window.terminals[0] || vscode.window.createTerminal();
-    // Change to the specified directory
-    // Get the path of the workspace folder
-    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-    const workspacePath = workspaceFolder?.uri.fsPath;
-    if (workspacePath) {
-        // Change to the workspace directory
-        terminal.sendText(`cd "${workspacePath}"`);
-    }
-    else {
-        console.error('No workspace folder found');
-    }
-    terminal.sendText(`cd ${path}`);
-    // Execute the command and echo a message
-    const doneMessage = "Command finished executing";
-    terminal.sendText(`${contents}`);
-    // Return a promise that resolves when the done message is printed
+function executeCommandLines(actions) {
+    // Join the commands together with &&
+    const command = actions.join(' && ');
+    // Execute the command
+    executeCommandLine(command);
     return;
+}
+async function executeCommandLine(action) {
+    const { path, contents } = action;
+    // Assuming kodemonkey is your way to log messages in VSCode, similar to using an OutputChannel
+    const hardcodedPath = "/Users/tomqlam/workspaces/sandbox";
+    kodemonkey.appendLine(`Executing command: ${contents}`);
+    kodemonkey.appendLine(`Target directory (hardcoded): ${path}`);
+    const executeCommand = (cmd, cwd) => {
+        return new Promise((resolve, reject) => {
+            // Log the intended directory before executing
+            kodemonkey.appendLine(`Preparing to execute in directory: ${cwd}`);
+            const options = {
+                cwd, // This ensures the command runs in the specified directory
+                env: { ...process.env }
+            };
+            // For debugging: append a command to print the current working directory
+            const debugCmd = `pwd && ${cmd}`;
+            (0, child_process_1.exec)(debugCmd, options, (error, stdout, stderr) => {
+                if (error) {
+                    reject(`error: ${error.message}`);
+                    return;
+                }
+                if (stderr) {
+                    reject(`stderr: ${stderr}`);
+                    return;
+                }
+                resolve(stdout);
+            });
+        });
+    };
+    try {
+        const output = await executeCommand(contents, path);
+        // This log will include the output of `pwd` command followed by your actual command's output
+        kodemonkey.appendLine(`Command execution output: ${output}`);
+    }
+    catch (error) {
+        kodemonkey.appendLine(`Error executing command: ${error}`);
+    }
 }
 async function parseGPTOutput(jsonObject) {
     jsonObject = jsonObject.replace(/```json|```/g, "");
@@ -180,8 +206,16 @@ async function parseGPTOutput(jsonObject) {
             modifyFile(func["path"] + func["name"], func["contents"]);
         }
         else if (func["action"] === "executeCommandLine") {
-            kodemonkey.appendLine(`Executing command line at path: ${func["path"]} with contents: ${func["contents"]}...`);
-            await executeCommandLine(func, thisTerminal);
+            kodemonkey.appendLine(`HELLO Executing command line at path: ${func["path"]} with contents: ${func["contents"]}...`);
+            // get concrete path
+            if (func["action"] === "executeCommandLine") {
+                const concretePath = func["path"].replace(".", "/Users/tomqlam/workspaces/sandbox");
+                kodemonkey.appendLine(`Concrete path: ${concretePath}`);
+                await executeCommandLine({ ...func, path: concretePath });
+                kodemonkey.appendLine(`GOODBYE...`);
+            }
+            await executeCommandLine(func);
+            kodemonkey.appendLine(`GOODBYE...`);
         }
     }
 }
@@ -432,7 +466,7 @@ class ColorsViewProvider {
 			<p>Start your chat here!</p>
 				<form id="myForm">
 				<input type="text" class="user-input" placeholder="What's your question">
-                <button type="submit" class="submit-button">ask kodemonkey</button>
+                <button type="submit" class="submit-button">ask BLAH</button>
 				</form>
 				<button class="clear-button">restart from scratch</button>
 

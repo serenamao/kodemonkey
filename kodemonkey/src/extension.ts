@@ -3,6 +3,9 @@ import * as path from "path";
 import OpenAI from "openai";
 import * as fs from "fs";
 import { json } from "stream/consumers";
+import { exec } from 'child_process';
+import * as process from 'process';
+
 let webviewViewGlobal: vscode.WebviewView | undefined;
 
 const agentPrompt = "Pretend you are a product manager telling me how to code a requested app. the app is an expense tracker with react, express, and mongodb. In each response, give me the description of a single step I should implement. I will respond with my intended changes to the code. Only say 2 sentences at a time. "
@@ -110,30 +113,74 @@ async function getLinesWithNumbers() {
 }
 
 
-async function executeCommandLine(action: any, terminal: any) {
+// async function executeCommandLine(action: any, terminal: any) {
+//   const { path, contents } = action;
+
+//   // const terminal = vscode.window.terminals[0] || vscode.window.createTerminal();
+
+//   // Change to the specified directory
+//   // Get the path of the workspace folder
+//   const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+//   const workspacePath = workspaceFolder?.uri.fsPath;
+
+//   if (workspacePath) {
+//     // Change to the workspace directory
+//     terminal.sendText(`cd "${workspacePath}"`);
+//   } else {
+//     console.error('No workspace folder found');
+//   }
+//   terminal.sendText(`cd ${path}`);
+
+//   // Execute the command and echo a message
+//   const doneMessage = "Command finished executing";
+//   terminal.sendText(`${contents}`);
+
+//   // Return a promise that resolves when the done message is printed
+//   return;
+// }
+
+async function executeCommandLine(action: any): Promise<void> {
   const { path, contents } = action;
+  // Assuming kodemonkey is your way to log messages in VSCode, similar to using an OutputChannel
+  const hardcodedPath = "/Users/tomqlam/workspaces/sandbox";
 
-  // const terminal = vscode.window.terminals[0] || vscode.window.createTerminal();
+  kodemonkey.appendLine(`Executing command: ${contents}`);
+  kodemonkey.appendLine(`Target directory (hardcoded): ${path}`);
 
-  // Change to the specified directory
-  // Get the path of the workspace folder
-  const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-  const workspacePath = workspaceFolder?.uri.fsPath;
+  const executeCommand = (cmd: string, cwd: string): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      // Log the intended directory before executing
+      kodemonkey.appendLine(`Preparing to execute in directory: ${cwd}`);
 
-  if (workspacePath) {
-    // Change to the workspace directory
-    terminal.sendText(`cd "${workspacePath}"`);
-  } else {
-    console.error('No workspace folder found');
+      const options = {
+        cwd, // This ensures the command runs in the specified directory
+        env: { ...process.env }
+      };
+
+      // For debugging: append a command to print the current working directory
+      const debugCmd = `pwd && ${cmd}`;
+
+      exec(debugCmd, options, (error, stdout, stderr) => {
+        if (error) {
+          reject(`error: ${error.message}`);
+          return;
+        }
+        if (stderr) {
+          reject(`stderr: ${stderr}`);
+          return;
+        }
+        resolve(stdout);
+      });
+    });
+  };
+
+  try {
+    const output = await executeCommand(contents, path);
+    // This log will include the output of `pwd` command followed by your actual command's output
+    kodemonkey.appendLine(`Command execution output: ${output}`);
+  } catch (error) {
+    kodemonkey.appendLine(`Error executing command: ${error}`);
   }
-  terminal.sendText(`cd ${path}`);
-
-  // Execute the command and echo a message
-  const doneMessage = "Command finished executing";
-  terminal.sendText(`${contents}`);
-
-  // Return a promise that resolves when the done message is printed
-  return;
 }
 
 async function parseGPTOutput(jsonObject: any) {
@@ -193,25 +240,34 @@ async function parseGPTOutput(jsonObject: any) {
     } else if (func["action"] === "createFile") {
       
       kodemonkey.appendLine(
-        `Creating file at path: ${func["path"] + func["name"]} with contents: ${
-          func["contents"]
+        `Creating file at path: ${func["path"] + func["name"]} with contents: ${func["contents"]
         }...`
       );
       createFile(func["path"] + func["name"], func["contents"]);
 
     } else if (func["action"] === "modifyFile") {
       kodemonkey.appendLine(
-        `Overwriting file at path: ${
-          func["path"] + func["name"]
+        `Overwriting file at path: ${func["path"] + func["name"]
         } with contents: ${func["contents"]}...`
       );
       modifyFile(func["path"] + func["name"], func["contents"]);
 
     } else if (func["action"] === "executeCommandLine") {
       kodemonkey.appendLine(
-        `Executing command line at path: ${func["path"]} with contents: ${func["contents"]}...`
+        `HELLO Executing command line at path: ${func["path"]} with contents: ${func["contents"]}...`
       );
-      await executeCommandLine(func, thisTerminal);
+      // get concrete path
+      if (func["action"] === "executeCommandLine") {
+        const concretePath = func["path"].replace(".", "/Users/tomqlam/workspaces/sandbox");
+        kodemonkey.appendLine(`Concrete path: ${concretePath}`);
+        await executeCommandLine({ ...func, path: concretePath });
+        kodemonkey.appendLine(`GOODBYE...`);
+      }
+      await executeCommandLine(func);
+      kodemonkey.appendLine(
+        `GOODBYE...`
+      );
+      await executeCommandLine(func);
     }
 
   }
@@ -456,7 +512,7 @@ class ColorsViewProvider implements vscode.WebviewViewProvider {
 
   private _view?: vscode.WebviewView;
 
-  constructor(private readonly _extensionUri: vscode.Uri) {}
+  constructor(private readonly _extensionUri: vscode.Uri) { }
 
   public resolveWebviewView(
     webviewView: vscode.WebviewView,
@@ -540,7 +596,7 @@ class ColorsViewProvider implements vscode.WebviewViewProvider {
 			<p>Start your chat here!</p>
 				<form id="myForm">
 				<input type="text" class="user-input" placeholder="What's your question">
-                <button type="submit" class="submit-button">ask kodemonkey</button>
+                <button type="submit" class="submit-button">ask BLAH</button>
 				</form>
 				<button class="clear-button">restart from scratch</button>
 
