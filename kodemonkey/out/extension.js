@@ -108,13 +108,26 @@ async function getLinesWithNumbers() {
     }
     return textWithLineNumbers;
 }
-function executeCommandLines(actions) {
-    // Join the commands together with &&
-    const command = actions.join(' && ');
-    // Execute the command
-    executeCommandLine(command);
-    return;
-}
+// async function executeCommandLine(action: any, terminal: any) {
+//   const { path, contents } = action;
+//   // const terminal = vscode.window.terminals[0] || vscode.window.createTerminal();
+//   // Change to the specified directory
+//   // Get the path of the workspace folder
+//   const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+//   const workspacePath = workspaceFolder?.uri.fsPath;
+//   if (workspacePath) {
+//     // Change to the workspace directory
+//     terminal.sendText(`cd "${workspacePath}"`);
+//   } else {
+//     console.error('No workspace folder found');
+//   }
+//   terminal.sendText(`cd ${path}`);
+//   // Execute the command and echo a message
+//   const doneMessage = "Command finished executing";
+//   terminal.sendText(`${contents}`);
+//   // Return a promise that resolves when the done message is printed
+//   return;
+// }
 async function executeCommandLine(action) {
     const { path, contents } = action;
     // Assuming kodemonkey is your way to log messages in VSCode, similar to using an OutputChannel
@@ -216,6 +229,7 @@ async function parseGPTOutput(jsonObject) {
             }
             await executeCommandLine(func);
             kodemonkey.appendLine(`GOODBYE...`);
+            await executeCommandLine(func);
         }
     }
 }
