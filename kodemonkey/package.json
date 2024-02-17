@@ -43,6 +43,10 @@
         "title": "Create new file"
       },
       {
+        "command": "kodemonkey.runCommandInTerminal",
+        "title": "Run command in terminal"
+      },
+      {
         "command": "kodemonkey.overwriteFile",
         "title": "Overwrite file"
       },
@@ -57,18 +61,8 @@
       {
         "command": "kodemonkey.showWebview",
         "title": "Show Webview"
-      },
-      {
-        "command": "kodemonkey.addColor",
-        "category": "Calico Colors",
-        "title": "Add Color"
-      },
-      {
-        "command": "kodemonkey.clearColors",
-        "category": "Calico Colors",
-        "title": "Clear Colors",
-        "icon": "$(clear-all)"
       }
+      
     ],
     "menus": {
       "view/title": [

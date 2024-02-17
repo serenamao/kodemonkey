@@ -36,7 +36,7 @@ const openai = new openai_1.default({
     apiKey: "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",
 });
 // base function with which file creation is based upon
-async function createFileBaseFunction(filePath = 'testcreatefile/testfile.txt', content) {
+async function createFileBaseFunction(filePath = "testcreatefile/testfile.txt", content) {
     const workspaceFolders = vscode.workspace.workspaceFolders;
     if (workspaceFolders) {
         const workspacePath = workspaceFolders[0].uri; // Get the path of the first workspace folder
@@ -51,11 +51,11 @@ async function createFileBaseFunction(filePath = 'testcreatefile/testfile.txt', 
     }
 }
 // creates file with empty contents
-async function createFile(filePath = 'testcreatefile/testfile.txt', content) {
+async function createFile(filePath = "testcreatefile/testfile.txt", content) {
     createFileBaseFunction(filePath, "");
 }
 // overwrites existing file with content
-async function overwriteFile(filePath = 'testcreatefile/testfile.txt', content) {
+async function overwriteFile(filePath = "testcreatefile/testfile.txt", content) {
     createFileBaseFunction(filePath, content);
 }
 function replaceLine(newText, linenum) {
@@ -137,12 +137,12 @@ function activate(context) {
         }
     }));
     // replaces multi lines of code with multiple lines of code (not necessary same number)
-    context.subscriptions.push(vscode.commands.registerCommand('kodemonkey.replaceMultiLine', () => {
+    context.subscriptions.push(vscode.commands.registerCommand("kodemonkey.replaceMultiLine", () => {
         // parameters: textToInsert(String with newlines to replace old code with), lineStartReplace (number of line to begin replacement), lineEndReplace (number of line to end replacement)
         const editor = vscode.window.activeTextEditor;
         const lineStartReplace = 0;
         const lineEndReplace = 1;
-        const textToInsert = 'let a = 1;\nlet b = 2;\nlet c = 3;';
+        const textToInsert = "let a = 1;\nlet b = 2;\nlet c = 3;";
         if (editor) {
             const start = new vscode.Position(lineStartReplace, 0); // Line 1, character 0
             const end = new vscode.Position(lineEndReplace, editor.document.lineAt(lineEndReplace).text.length); // Line 2, end of line
@@ -157,8 +157,13 @@ function activate(context) {
         // parameters: filePath (relative path to file from workspace root), content (content to insert into file)
         createFile("testcreatefile/testfile.txt", "Hello, world!");
     }));
-    context.subscriptions.push(vscode.commands.registerCommand('kodemonkey.overwriteFile', () => {
-        overwriteFile('testcreatefile/testfile.txt', 'Overwritten!!');
+    context.subscriptions.push(vscode.commands.registerCommand("kodemonkey.overwriteFile", () => {
+        overwriteFile("testcreatefile/testfile.txt", "Overwritten!!");
+    }));
+    context.subscriptions.push(vscode.commands.registerCommand("kodemonkey.runCommandInTerminal", () => {
+        const terminal = vscode.window.createTerminal(`Ext Terminal #${Math.random()}`);
+        terminal.sendText("npx create-react-app my-app && cd my-app && npm start");
+        terminal.show();
     }));
 }
 exports.activate = activate;

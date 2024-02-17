@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import * as path from 'path';
+import * as path from "path";
 import OpenAI from "openai";
 
 // custom terminal output channel
@@ -9,36 +9,45 @@ const openai = new OpenAI({
   apiKey: "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",
 });
 
-
-
-
 // base function with which file creation is based upon
-async function createFileBaseFunction(filePath: string = 'testcreatefile/testfile.txt', content: string) {
-	const workspaceFolders = vscode.workspace.workspaceFolders;
-	if (workspaceFolders) {
-	  const workspacePath = workspaceFolders[0].uri; // Get the path of the first workspace folder
-	  const newFilePath = vscode.Uri.joinPath(workspacePath, filePath); // Create a new Uri for the new file
-  
-	  const newFileDir = vscode.Uri.joinPath(workspacePath, path.dirname(filePath)); // Get the directory of the new file
-	  await vscode.workspace.fs.createDirectory(newFileDir); // Create the directory if it does not exist
-  
-	  const newFileData = Buffer.from(content, "utf8"); // Create a buffer for the file content
-	  await vscode.workspace.fs.writeFile(newFilePath, newFileData); // Write the file
-	} else {
-	  vscode.window.showErrorMessage(
-		"No workspace folder found. Please open a workspace first."
-	  );
-	}
+async function createFileBaseFunction(
+  filePath: string = "testcreatefile/testfile.txt",
+  content: string
+) {
+  const workspaceFolders = vscode.workspace.workspaceFolders;
+  if (workspaceFolders) {
+    const workspacePath = workspaceFolders[0].uri; // Get the path of the first workspace folder
+    const newFilePath = vscode.Uri.joinPath(workspacePath, filePath); // Create a new Uri for the new file
+
+    const newFileDir = vscode.Uri.joinPath(
+      workspacePath,
+      path.dirname(filePath)
+    ); // Get the directory of the new file
+    await vscode.workspace.fs.createDirectory(newFileDir); // Create the directory if it does not exist
+
+    const newFileData = Buffer.from(content, "utf8"); // Create a buffer for the file content
+    await vscode.workspace.fs.writeFile(newFilePath, newFileData); // Write the file
+  } else {
+    vscode.window.showErrorMessage(
+      "No workspace folder found. Please open a workspace first."
+    );
   }
+}
 
 // creates file with empty contents
-async function createFile(filePath: string = 'testcreatefile/testfile.txt', content: string) {
-	createFileBaseFunction(filePath, "");
+async function createFile(
+  filePath: string = "testcreatefile/testfile.txt",
+  content: string
+) {
+  createFileBaseFunction(filePath, "");
 }
 
 // overwrites existing file with content
-async function overwriteFile(filePath: string = 'testcreatefile/testfile.txt', content: string) {
-	createFileBaseFunction(filePath, content);
+async function overwriteFile(
+  filePath: string = "testcreatefile/testfile.txt",
+  content: string
+) {
+  createFileBaseFunction(filePath, content);
 }
 
 function replaceLine(newText: string, linenum: number) {
@@ -140,19 +149,22 @@ export function activate(context: vscode.ExtensionContext) {
 
   // replaces multi lines of code with multiple lines of code (not necessary same number)
   context.subscriptions.push(
-    vscode.commands.registerCommand('kodemonkey.replaceMultiLine', () => {
+    vscode.commands.registerCommand("kodemonkey.replaceMultiLine", () => {
       // parameters: textToInsert(String with newlines to replace old code with), lineStartReplace (number of line to begin replacement), lineEndReplace (number of line to end replacement)
       const editor = vscode.window.activeTextEditor;
       const lineStartReplace = 0;
       const lineEndReplace = 1;
-     
-      const textToInsert = 'let a = 1;\nlet b = 2;\nlet c = 3;';
+
+      const textToInsert = "let a = 1;\nlet b = 2;\nlet c = 3;";
       if (editor) {
         const start = new vscode.Position(lineStartReplace, 0); // Line 1, character 0
-        const end = new vscode.Position(lineEndReplace, editor.document.lineAt(lineEndReplace).text.length); // Line 2, end of line
-       
+        const end = new vscode.Position(
+          lineEndReplace,
+          editor.document.lineAt(lineEndReplace).text.length
+        ); // Line 2, end of line
+
         const range = new vscode.Range(start, end);
-  
+
         editor.edit((editBuilder) => {
           editBuilder.replace(range, textToInsert);
         });
@@ -164,14 +176,25 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand("kodemonkey.createNewFile", () => {
       // parameters: filePath (relative path to file from workspace root), content (content to insert into file)
-	  createFile("testcreatefile/testfile.txt", "Hello, world!");
+      createFile("testcreatefile/testfile.txt", "Hello, world!");
     })
   );
 
   context.subscriptions.push(
-  	vscode.commands.registerCommand('kodemonkey.overwriteFile', () => {
-  		overwriteFile('testcreatefile/testfile.txt', 'Overwritten!!');
-  	}));
+    vscode.commands.registerCommand("kodemonkey.overwriteFile", () => {
+      overwriteFile("testcreatefile/testfile.txt", "Overwritten!!");
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("kodemonkey.runCommandInTerminal", () => {
+      const terminal = vscode.window.createTerminal(
+        `Ext Terminal #${Math.random()}`
+      );
+      terminal.sendText("npx create-react-app my-app && cd my-app && npm start");
+      terminal.show();
+    })
+  );
 }
 
 class ColorsViewProvider implements vscode.WebviewViewProvider {
