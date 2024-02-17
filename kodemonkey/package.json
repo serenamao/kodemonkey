@@ -6,18 +6,79 @@
   "engines": {
     "vscode": "^1.54.0"
   },
+  "extensionKind": [
+    "ui",
+    "workspace"
+  ],
   "categories": [
     "Other"
   ],
   "activationEvents": [],
   "main": "./out/extension.js",
   "contributes": {
+    "views": {
+      "explorer": [
+        {
+          "id": "kodemonkey.simpleWebView",
+          "name": "Simple view"
+        },
+        {
+          "type": "webview",
+          "id": "kodemonkey.colorsView",
+          "name": "kodemonkey"
+        }
+      ]
+    },
     "commands": [
       {
         "command": "kodemonkey.helloWorld",
         "title": "Hello World"
+      },
+      {
+        "command": "kodemonkey.insertMultiLine",
+        "title": "Insert Multi Line"
+      },
+      {
+        "command": "kodemonkey.createNewFile",
+        "title": "Create new file"
+      },
+      {
+        "command": "kodemonkey.overwriteFile",
+        "title": "Overwrite file"
+      },
+      {
+        "command": "kodemonkey.replaceMultiLine",
+        "title": "Replace Multi Line"
+      },
+      {
+        "command": "kodemonkey.showSmallWindow",
+        "title": "Show Small Window"
+      },
+      {
+        "command": "kodemonkey.showWebview",
+        "title": "Show Webview"
+      },
+      {
+        "command": "kodemonkey.addColor",
+        "category": "Calico Colors",
+        "title": "Add Color"
+      },
+      {
+        "command": "kodemonkey.clearColors",
+        "category": "Calico Colors",
+        "title": "Clear Colors",
+        "icon": "$(clear-all)"
       }
-    ]
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "kodemonkey.clearColors",
+          "group": "navigation",
+          "when": "view == kodemonkey.colorsView"
+        }
+      ]
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
@@ -28,14 +89,17 @@
     "test": "vscode-test"
   },
   "devDependencies": {
-    "@types/vscode": "^1.54.0",
     "@types/mocha": "^10.0.6",
     "@types/node": "18.x",
+    "@types/vscode": "^1.54.0",
     "@typescript-eslint/eslint-plugin": "^6.15.0",
     "@typescript-eslint/parser": "^6.15.0",
-    "eslint": "^8.56.0",
-    "typescript": "^5.3.3",
     "@vscode/test-cli": "^0.0.4",
-    "@vscode/test-electron": "^2.3.8"
+    "@vscode/test-electron": "^2.3.8",
+    "eslint": "^8.56.0",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "openai": "^4.28.0"
   }
 }
