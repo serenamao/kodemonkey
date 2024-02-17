@@ -161,6 +161,9 @@ async function parseGPTOutput(jsonObject: any) {
     else if (func["path"] && !func["path"].endsWith("/")) {
       func["path"] += "/";
     }
+    if (!func["contents"]) {
+      func["contents"] = "";
+    }
     
 
     if (func["action"] === "createFolder") {
@@ -170,9 +173,7 @@ async function parseGPTOutput(jsonObject: any) {
       createFolder(func["path"] + func["name"]);
 
     } else if (func["action"] === "createFile") {
-      if (!func["contents"]) {
-        func["contents"] = "";
-      }
+      
       kodemonkey.appendLine(
         `Creating file at path: ${func["path"] + func["name"]} with contents: ${
           func["contents"]
