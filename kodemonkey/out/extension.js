@@ -231,15 +231,15 @@ async function parseGPTOutput(jsonObject) {
         }
         if (func["action"] === "createFolder") {
             kodemonkey.appendLine(`Creating folder at path: ${func["path"] + func["name"]}...`);
-            createFolder(func["path"] + func["name"]);
+            await createFolder(func["path"] + func["name"]);
         }
         else if (func["action"] === "createFile") {
             kodemonkey.appendLine(`Creating file at path: ${func["path"] + func["name"]} with contents: ${func["contents"]}...`);
-            createFile(func["path"] + func["name"], func["contents"]);
+            await createFile(func["path"] + func["name"], func["contents"]);
         }
         else if (func["action"] === "modifyFile") {
             kodemonkey.appendLine(`Overwriting file at path: ${func["path"] + func["name"]} with contents: ${func["contents"]}...`);
-            modifyFile(func["path"] + func["name"], func["contents"]);
+            await modifyFile(func["path"] + func["name"], func["contents"]);
         }
         else if (func["action"] === "executeCommandLineBlocking") {
             kodemonkey.appendLine(`block/nonblok Executing command line at path: ${func["path"]} with contents: ${func["contents"]}...`);
