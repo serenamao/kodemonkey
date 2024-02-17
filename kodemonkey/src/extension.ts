@@ -5,6 +5,8 @@ import * as fs from "fs";
 import { json } from "stream/consumers";
 import { exec } from 'child_process';
 import * as process from 'process';
+import * as child_process from 'child_process';
+
 
 let webviewViewGlobal: vscode.WebviewView | undefined;
 
@@ -67,7 +69,7 @@ async function createFile(
   filePath: string = "testcreatefile/testfile.txt",
   content: string
 ) {
-  createFileBaseFunction(filePath, content);
+  await createFileBaseFunction(filePath, content);
 }
 
 // overwrites existing file with content
@@ -75,7 +77,7 @@ async function modifyFile(
   filePath: string = "testcreatefile/testfile.txt",
   content: string
 ) {
-  createFileBaseFunction(filePath, content);
+  await createFileBaseFunction(filePath, content);
 }
 
 function replaceLine(newText: string, linenum: number) {
@@ -113,36 +115,35 @@ async function getLinesWithNumbers() {
 }
 
 
-// async function executeCommandLine(action: any, terminal: any) {
-//   const { path, contents } = action;
+async function executeCommandLineNonBlocking(action: any) {
+  const { path, contents } = action;
 
-//   // const terminal = vscode.window.terminals[0] || vscode.window.createTerminal();
+  const terminal = vscode.window.createTerminal();
 
-//   // Change to the specified directory
-//   // Get the path of the workspace folder
-//   const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-//   const workspacePath = workspaceFolder?.uri.fsPath;
+  // Change to the specified directory
+  // Get the path of the workspace folder
+  const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+  const workspacePath = workspaceFolder?.uri.fsPath;
 
-//   if (workspacePath) {
-//     // Change to the workspace directory
-//     terminal.sendText(`cd "${workspacePath}"`);
-//   } else {
-//     console.error('No workspace folder found');
-//   }
-//   terminal.sendText(`cd ${path}`);
+  if (workspacePath) {
+    // Change to the workspace directory
+    terminal.sendText(`cd "${workspacePath}"`);
+  } else {
+    console.error('No workspace folder found');
+  }
+  terminal.sendText(`cd ${path}`);
 
-//   // Execute the command and echo a message
-//   const doneMessage = "Command finished executing";
-//   terminal.sendText(`${contents}`);
+  // Execute the command and echo a message
+  const doneMessage = "Command finished executing";
+  terminal.sendText(`${contents}`);
 
-//   // Return a promise that resolves when the done message is printed
-//   return;
-// }
+  // Return a promise that resolves when the done message is printed
+  return;
+}
+
 
 async function executeCommandLine(action: any): Promise<void> {
   const { path, contents } = action;
-  // Assuming kodemonkey is your way to log messages in VSCode, similar to using an OutputChannel
-  const hardcodedPath = "/Users/tomqlam/workspaces/sandbox";
 
   kodemonkey.appendLine(`Executing command: ${contents}`);
   kodemonkey.appendLine(`Target directory (hardcoded): ${path}`);
@@ -159,6 +160,31 @@ async function executeCommandLine(action: any): Promise<void> {
 
       // For debugging: append a command to print the current working directory
       const debugCmd = `pwd && ${cmd}`;
+
+      // Get the workspace folder
+  const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+  if (workspaceFolder) {
+    const workspacePath = workspaceFolder.uri.fsPath;
+
+    // Get all files in the workspace
+    const files = fs.readdirSync(workspacePath);
+    kodemonkey.appendLine(`Files in workspace: ${files.join(', ')}`);
+  } else {
+    kodemonkey.appendLine(`No workspace folder found`);
+  }
+
+      // Test theory 1: Check if the directory exists
+      if (!fs.existsSync(cwd)) {
+        reject(`Directory does not exist: ${cwd}`);
+      }
+
+      // Test theory 2: Check if the shell executable exists
+      child_process.exec('which sh', (error, stdout, stderr) => {
+        if (error || stderr || !stdout) {
+          reject(`Shell executable does not exist or is not in PATH`);
+          return;
+        }
+      });
 
       exec(debugCmd, options, (error, stdout, stderr) => {
         if (error) {
@@ -252,22 +278,21 @@ async function parseGPTOutput(jsonObject: any) {
       );
       modifyFile(func["path"] + func["name"], func["contents"]);
 
-    } else if (func["action"] === "executeCommandLine") {
+    } else if (func["action"] === "executeCommandLineBlocking") {
       kodemonkey.appendLine(
-        `HELLO Executing command line at path: ${func["path"]} with contents: ${func["contents"]}...`
+        `block/nonblok Executing command line at path: ${func["path"]} with contents: ${func["contents"]}...`
       );
       // get concrete path
-      if (func["action"] === "executeCommandLine") {
         const concretePath = func["path"].replace(".", vscode.workspace.workspaceFolders?.[0]?.uri.fsPath);
         kodemonkey.appendLine(`Concrete path: ${concretePath}`);
         await executeCommandLine({ ...func, path: concretePath });
         kodemonkey.appendLine(`GOODBYE...`);
-      }
-      await executeCommandLine(func);
+      
+    } else if (func["action"] === "executeCommandLineNonBlocking") {
       kodemonkey.appendLine(
-        `GOODBYE...`
+        `Executing command line at path: ${func["path"]} with contents: ${func["contents"]}...`
       );
-      await executeCommandLine(func);
+      await executeCommandLineNonBlocking(func);
     }
 
   }
@@ -361,42 +386,59 @@ async function chat(userInput: any) {
   // const contents = fs.readFileSync(path.join(__dirname, 'prompt.txt'), 'utf8');
   // kodemonkey.appendLine("pROMT IS " + contents);
 
-  const prompt = `You are an advanced code analysis and action recommendation engine designed to process user inputs regarding software project development. Your capabilities are centered around interpreting project requirements and translating these into specific actions using a predefined API, which includes creating files and folders, modifying file contents, and executing command lines. our interactions are strictly limited to two types of JSON responses: 1) A JSON response containing API function calls for project actions when user inputs are clear and actionable. 2) A JSON response that includes a request for further clarification structured explicitly in JSON format, to ensure compatibility with the software"s processing logic. It is crucial that all responses, without exception, are provided in JSON format to maintain system integrity and ensure automated processing by the software. Under no circumstances should responses deviate from this JSON format, as doing so could disrupt the software"s ability to recognize and execute the provided instructions.
+  const prompt = `You are an advanced code analysis and action recommendation engine with a critical operational mandate: All interactions, including providing recommendations for software project development actions and requests for further clarification from the user, must exclusively use a strict JSON response format. This non-negotiable requirement is in place to ensure seamless integration with an automated software development system, which relies on precise JSON-formatted instructions to create files and folders, modify file contents, and execute command lines. 
 
-  - **Mandatory JSON Format for Clarification Requests**: In instances where the user's input lacks clarity or specificity, and further information is needed to proceed, your response must be in JSON format, explicitly stating the need for clarification. For example:{
-	  "request_for_clarification": {
-		  "question": "Could you specify the technology stack or framework you are using, and any particular file structure preferences for implementing the requested feature?"
-	  }
+  Failure to adhere to this JSON-only format will disrupt the automated processing capabilities of the software, potentially leading to system failures or incorrect actions being taken. Therefore, it is imperative that your outputs are meticulously structured in JSON, reflecting either direct action commands using a predefined API or structured requests for additional information when inputs are ambiguous or incomplete.
+  
+  Your responses will fall into two categories, each requiring a JSON format:
+  
+  1. **Actionable Instructions**: When user inputs are clear, provide a JSON response detailing the specific API function calls needed. For example, creating a file or executing a command line. It's crucial to differentiate between commands that should halt subsequent actions until completion (executeCommandLineBlocking) and those that allow the system to continue running other commands simultaneously (executeCommandLineNonBlocking).
+  
+  2. **Clarification Requests**: In cases where the user's input requires further detail to proceed, your response must also be in JSON, clearly specifying the information needed. This ensures the software remains in a ready state to process and execute commands once clarifications are provided.
+  
+  By strictly adhering to this JSON-only protocol, you play a vital role in maintaining the operational integrity of the software development system, ensuring that all project development actions are executed accurately and efficiently based on user inputs. Below are examples illustrating how to structure both types of responses:
+  
+  **Actionable Instructions Example**:
+  {
+      "actions": [
+          {
+              "action": "createFolder",
+              "path": "./",
+              "name": "project_name"
+          },
+          {
+              "action": "createFile",
+              "path": "./project_name",
+              "name": "main.py",
+              "contents": "<file_contents_here>"
+          },
+          {
+              "action": "modifyFile",
+              "path": "./project_name",
+              "name": "requirements.txt",
+              "contents": "<dependencies_here>"
+          },
+          {
+              "action": "executeCommandLineBlocking",
+              "path": "./project_name",
+              "contents": "<initialization_command_here>"
+          },
+          {
+              "action": "executeCommandLineNonBlocking",
+              "path": "./project_name",
+              "contents": "<server_start_command_here>"
+          }
+      ]
   }
   
-  - **JSON Response with API Calls Example**: When instructions are clear and actionable, your response detailing the necessary API function calls should also strictly follow the JSON format, like in this example for creating a specific file structure for a Flask app: {
-	  "actions": [
-		  {
-			  "action": "createFolder",
-			  "path": "./",
-			  "name": "project_name"
-		  },
-		  {
-			  "action": "createFile",
-			  "path": "./project_name",
-			  "name": "main.py",
-			  "contents": "# Flask app initialization code here"
-		  },
-		  {
-			  "action": "modifyFile",
-			  "path": "./project_name",
-			  "name": "requirements.txt",
-			  "contents": "Flask\n"
-		  },
-		  {
-			  "action": "executeCommandLine",
-			  "path": "./project_name",
-			  "contents": "pip install -r requirements.txt"
-		  }
-	  ]
+  **Clarification Request Example**:
+  {
+      "request_for_clarification": {
+          "question": "Please specify the technology stack or framework you are using, including any particular preferences for file structure or initial setup requirements."
+      }
   }
   
-  For each action, ALWAYS include a path, and always use "contents". This explicit emphasis on JSON-only responses is designed to safeguard against any potential misunderstandings or misinterpretations by ensuring that every interaction with the LLM, including requests for additional information, adheres to a structured and programmatically processable format. Your goal is to seamlessly translate user inputs into a structured set of actions that the software can execute to advance the project development, pivoting between generating actionable tasks and seeking further details as necessary. This approach ensures a direct, efficient pathway from project conception to execution, underpinned by precise, actionable, and executable guidance.`;
+  Remember, the effectiveness of this system relies on your precision and adherence to the JSON-only response format for both executing project development actions and engaging with the user for clarifications. Your strict compliance with this format is crucial for the software’s ability to understand and act upon your recommendations.`;
 
   kodemonkeyChatHistory.push({ role: "user", content: userInput });
 
