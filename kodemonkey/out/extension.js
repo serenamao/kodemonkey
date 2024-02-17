@@ -114,15 +114,21 @@ function executeCommandLines(actions) {
 }
 async function executeCommandLine(action) {
     const { path, contents } = action;
-    kodemonkey.appendLine(`Executing command line at path: ${path} with contents: ${contents}...`);
+    // Assuming kodemonkey is your way to log messages in VSCode, similar to using an OutputChannel
+    const hardcodedPath = "/Users/tomqlam/workspaces/sandbox";
+    kodemonkey.appendLine(`Executing command: ${contents}`);
+    kodemonkey.appendLine(`Target directory (hardcoded): ${path}`);
     const executeCommand = (cmd, cwd) => {
         return new Promise((resolve, reject) => {
-            console.log(`Executing in directory: ${cwd}`); // Debug: log current working directory
+            // Log the intended directory before executing
+            kodemonkey.appendLine(`Preparing to execute in directory: ${cwd}`);
             const options = {
-                cwd,
-                env: { ...process.env, PATH: process.env.PATH } // Explicitly set PATH in environment
+                cwd, // This ensures the command runs in the specified directory
+                env: { ...process.env }
             };
-            (0, child_process_1.exec)(cmd, options, (error, stdout, stderr) => {
+            // For debugging: append a command to print the current working directory
+            const debugCmd = `pwd && ${cmd}`;
+            (0, child_process_1.exec)(debugCmd, options, (error, stdout, stderr) => {
                 if (error) {
                     reject(`error: ${error.message}`);
                     return;
@@ -137,10 +143,11 @@ async function executeCommandLine(action) {
     };
     try {
         const output = await executeCommand(contents, path);
-        console.log("Command execution completed successfully:", output);
+        // This log will include the output of `pwd` command followed by your actual command's output
+        kodemonkey.appendLine(`Command execution output: ${output}`);
     }
     catch (error) {
-        console.error("Command execution failed:", error);
+        kodemonkey.appendLine(`Error executing command: ${error}`);
     }
 }
 async function parseGPTOutput(jsonObject) {
@@ -195,6 +202,13 @@ async function parseGPTOutput(jsonObject) {
         }
         else if (func["action"] === "executeCommandLine") {
             kodemonkey.appendLine(`HELLO Executing command line at path: ${func["path"]} with contents: ${func["contents"]}...`);
+            // get concrete path
+            if (func["action"] === "executeCommandLine") {
+                const concretePath = func["path"].replace(".", "/Users/tomqlam/workspaces/sandbox");
+                kodemonkey.appendLine(`Concrete path: ${concretePath}`);
+                await executeCommandLine({ ...func, path: concretePath });
+                kodemonkey.appendLine(`GOODBYE...`);
+            }
             await executeCommandLine(func);
             kodemonkey.appendLine(`GOODBYE...`);
         }
