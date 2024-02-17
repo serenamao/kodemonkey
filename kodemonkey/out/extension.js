@@ -30,6 +30,8 @@ exports.activate = void 0;
 const vscode = __importStar(require("vscode"));
 const path = __importStar(require("path"));
 const openai_1 = __importDefault(require("openai"));
+let webviewViewGlobal;
+let chatHistory = []; // all message ever
 // custom terminal output channel
 let kodemonkey = vscode.window.createOutputChannel("kodemonkey");
 const openai = new openai_1.default({
@@ -52,10 +54,10 @@ async function createFileBaseFunction(filePath = "testcreatefile/testfile.txt", 
 }
 // creates file with empty contents
 async function createFile(filePath = "testcreatefile/testfile.txt", content) {
-    createFileBaseFunction(filePath, "");
+    createFileBaseFunction(filePath, content);
 }
 // overwrites existing file with content
-async function overwriteFile(filePath = "testcreatefile/testfile.txt", content) {
+async function modifyFile(filePath = "testcreatefile/testfile.txt", content) {
     createFileBaseFunction(filePath, content);
 }
 function replaceLine(newText, linenum) {
@@ -89,36 +91,120 @@ async function getLinesWithNumbers() {
     }
     return textWithLineNumbers;
 }
+async function executeCommandLine(action) {
+    const { path, contents } = action;
+    // Create a terminal if it doesn't exist
+    const terminal = vscode.window.createTerminal();
+    // Change to the specified directory
+    terminal.sendText(`cd ${path}`);
+    // Execute the command
+    terminal.sendText(contents);
+}
+async function parseGPTOutput(jsonObject) {
+    jsonObject = jsonObject.replace(/```json|```/g, "");
+    try {
+        // Try to parse the JSON string to an object
+        jsonObject = JSON.parse(jsonObject);
+    }
+    catch (error) {
+        // If an error is thrown, log it and return
+        kodemonkey.appendLine("Invalid JSON:");
+        kodemonkey.appendLine(jsonObject);
+        return;
+    }
+    if (jsonObject["request_for_clarification"] && webviewViewGlobal) {
+        // Assuming `panel` is your WebViewPanel
+        webviewViewGlobal.webview.postMessage({
+            type: "clarification",
+            text: jsonObject["request_for_clarification"]["question"],
+        });
+        return;
+    }
+    for (let func of jsonObject["actions"]) {
+        // Ensure func["path"] ends with a forward slash
+        if (!func["path"].endsWith("/")) {
+            func["path"] += "/";
+        }
+        if (func["action"] === "createFolder") {
+            kodemonkey.appendLine(`Creating folder at path: ${func["path"] + func["name"]}...`);
+            createFile(func["path"] + func["name"], "");
+        }
+        else if (func["action"] === "createFile") {
+            kodemonkey.appendLine(`Creating file at path: ${func["path"] + func["name"]} with contents: ${func["contents"]}...`);
+            createFile(func["path"] + func["name"], func["contents"]);
+        }
+        else if (func["action"] === "modifyFile") {
+            kodemonkey.appendLine(`Overwriting file at path: ${func["path"] + func["name"]} with contents: ${func["contents"]}...`);
+            modifyFile(func["path"] + func["name"], func["contents"]);
+        }
+        else if (func["action"] === "executeCommandLine") {
+            kodemonkey.appendLine(`Executing command line at path: ${func["path"]} with contents: ${func["contents"]}...`);
+            executeCommandLine(func);
+        }
+    }
+}
 async function chat(userInput) {
-    kodemonkey.appendLine("Chatting and creating test file");
-    createFile("test.txt", "Hello, world!");
-    const linesWithNumbers = await getLinesWithNumbers(); // Await the getLinesWithNumbers() function call
-    kodemonkey.appendLine(linesWithNumbers); // Pass the result to kodemonkey.appendLine()
-    const prompt = `Given the code context, return the exact line of code with the annotated line number that needs to be changed, as well as the new line of code. Please return a string with correct indentation. In this format: replaceLine('updated line of code with correct indentation', lineNumber)`;
+    kodemonkey.appendLine("chatting with kodemonkey...");
+    // const contents = fs.readFileSync(path.join(__dirname, 'prompt.txt'), 'utf8');
+    // kodemonkey.appendLine("pROMT IS " + contents);
+    const prompt = `You are an advanced code analysis and action recommendation engine designed to process user inputs regarding software project development. Your capabilities are centered around interpreting project requirements and translating these into specific actions using a predefined API, which includes creating files and folders, modifying file contents, and executing command lines. our interactions are strictly limited to two types of JSON responses: 1) A JSON response containing API function calls for project actions when user inputs are clear and actionable. 2) A JSON response that includes a request for further clarification structured explicitly in JSON format, to ensure compatibility with the software"s processing logic. It is crucial that all responses, without exception, are provided in JSON format to maintain system integrity and ensure automated processing by the software. Under no circumstances should responses deviate from this JSON format, as doing so could disrupt the software"s ability to recognize and execute the provided instructions.
+
+  - **Mandatory JSON Format for Clarification Requests**: In instances where the user's input lacks clarity or specificity, and further information is needed to proceed, your response must be in JSON format, explicitly stating the need for clarification. For example:{
+	  "request_for_clarification": {
+		  "question": "Could you specify the technology stack or framework you are using, and any particular file structure preferences for implementing the requested feature?"
+	  }
+  }
+  
+  - **JSON Response with API Calls Example**: When instructions are clear and actionable, your response detailing the necessary API function calls should also strictly follow the JSON format, like in this example for creating a specific file structure for a Flask app: {
+	  "actions": [
+		  {
+			  "action": "createFolder",
+			  "path": "./",
+			  "name": "project_name"
+		  },
+		  {
+			  "action": "createFile",
+			  "path": "./project_name",
+			  "name": "main.py",
+			  "contents": "# Flask app initialization code here"
+		  },
+		  {
+			  "action": "modifyFile",
+			  "path": "./project_name",
+			  "name": "requirements.txt",
+			  "contents": "Flask\n"
+		  },
+		  {
+			  "action": "executeCommandLine",
+			  "path": "./project_name",
+			  "contents": "pip install -r requirements.txt"
+		  }
+	  ]
+  }
+  
+  This explicit emphasis on JSON-only responses is designed to safeguard against any potential misunderstandings or misinterpretations by ensuring that every interaction with the LLM, including requests for additional information, adheres to a structured and programmatically processable format. Your goal is to seamlessly translate user inputs into a structured set of actions that the software can execute to advance the project development, pivoting between generating actionable tasks and seeking further details as necessary. This approach ensures a direct, efficient pathway from project conception to execution, underpinned by precise, actionable, and executable guidance.`;
+    chatHistory.push({ role: "user", content: userInput });
+    //   kodemonkey.appendLine(prompt);
     const completion = await openai.chat.completions.create({
         messages: [
             {
                 role: "system",
-                content: prompt + "here is my code: " + linesWithNumbers,
+                content: prompt,
             },
-            { role: "user", content: userInput },
+            ...chatHistory,
         ],
-        model: "gpt-3.5-turbo",
+        model: "gpt-4-0125-preview",
     });
-    if (completion.choices[0].message.content) {
-        kodemonkey.appendLine(completion.choices[0].message.content);
-        eval(completion.choices[0].message.content);
+    const gptOutput = completion.choices[0].message.content;
+    if (gptOutput) {
+        // prints GPT output to custom output
+        chatHistory.push({ role: "assistant", content: gptOutput });
+        // kodemonkey.appendLine(JSON.stringify(chatHistory));
+        // parse response as JSON
+        parseGPTOutput(gptOutput);
+        // eval(completion.choices[0].message.content); // RUNS THE CODE
         // replaceLine(completion.choices[0].message.content, 0);
     }
-    //   if (completion.choices[0].message.content) {
-    // 	kodemonkey.appendLine(completion.choices[0].message.content);
-    // 	const functionCall = completion.choices[0].message.content;
-    // if (functionCall.startsWith('createFile(') || functionCall.startsWith('insertText(')) {
-    //     eval(functionCall);
-    // } else {
-    //     console.log('Invalid function call:', functionCall);
-    // }
-    //   }
     return completion.choices[0].message.content;
 }
 function activate(context) {
@@ -157,8 +243,8 @@ function activate(context) {
         // parameters: filePath (relative path to file from workspace root), content (content to insert into file)
         createFile("testcreatefile/testfile.txt", "Hello, world!");
     }));
-    context.subscriptions.push(vscode.commands.registerCommand("kodemonkey.overwriteFile", () => {
-        overwriteFile("testcreatefile/testfile.txt", "Overwritten!!");
+    context.subscriptions.push(vscode.commands.registerCommand("kodemonkey.modifyFile", () => {
+        modifyFile("testcreatefile/testfile.txt", "Overwritten!!");
     }));
     context.subscriptions.push(vscode.commands.registerCommand("kodemonkey.runCommandInTerminal", () => {
         const terminal = vscode.window.createTerminal(`Ext Terminal #${Math.random()}`);
@@ -175,6 +261,7 @@ class ColorsViewProvider {
         this._extensionUri = _extensionUri;
     }
     resolveWebviewView(webviewView, context, _token) {
+        webviewViewGlobal = webviewView;
         this._view = webviewView;
         webviewView.webview.options = {
             // Allow scripts in the webview
@@ -191,10 +278,13 @@ class ColorsViewProvider {
                             type: "chatResult",
                             text: "kodemonkey: " + response,
                         });
-                        kodemonkey.appendLine("posted");
+                        kodemonkey.appendLine("Chat sent!");
                     }
                     break;
                 }
+                case "clear":
+                    chatHistory = [];
+                    break;
                 // case 'colorSelected':
                 // 	{
                 // 		vscode.window.activeTextEditor?.insertSnippet(new vscode.SnippetString(`#${data.value}`));
@@ -247,10 +337,13 @@ class ColorsViewProvider {
             <body>
 			<p>Start your chat here!</p>
 				<input type="text" class="user-input" placeholder="What's your question">
-                <button class="submit-button">ask kodemonkey</button>
+                <button type="submit" class="submit-button">ask kodemonkey</button>
+				<button class="clear-button">restart from scratch</button>
 
 
-				<script nonce="${nonce}" src="${scriptUri}"></script>
+				<script nonce="${nonce}" src="${scriptUri}">
+
+				</script>
 			</body>
             </html>`;
     }

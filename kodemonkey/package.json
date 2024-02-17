@@ -47,7 +47,7 @@
         "title": "Run command in terminal"
       },
       {
-        "command": "kodemonkey.overwriteFile",
+        "command": "kodemonkey.modifyFile",
         "title": "Overwrite file"
       },
       {
@@ -66,11 +66,7 @@
     ],
     "menus": {
       "view/title": [
-        {
-          "command": "kodemonkey.clearColors",
-          "group": "navigation",
-          "when": "view == kodemonkey.colorsView"
-        }
+
       ]
     }
   },
