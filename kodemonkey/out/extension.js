@@ -145,6 +145,7 @@ async function parseGPTOutput(jsonObject) {
         }
         else if (func["action"] === "executeCommandLine") {
             kodemonkey.appendLine(`Executing command line at path: ${func["path"]} with contents: ${func["contents"]}...`);
+            executeCommandLine(func);
         }
     }
 }

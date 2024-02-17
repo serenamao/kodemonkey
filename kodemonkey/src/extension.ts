@@ -165,6 +165,7 @@ async function parseGPTOutput(jsonObject: any) {
       kodemonkey.appendLine(
         `Executing command line at path: ${func["path"]} with contents: ${func["contents"]}...`
       );
+	  executeCommandLine(func);
     }
   }
 }
