@@ -34,9 +34,21 @@ let webviewViewGlobal;
 let chatHistory = []; // all message ever
 // custom terminal output channel
 let kodemonkey = vscode.window.createOutputChannel("kodemonkey");
+let kodemonkey_logs = vscode.window.createOutputChannel("kodemonkey_logs");
 const openai = new openai_1.default({
     apiKey: "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",
 });
+async function createFolder(folderPath = "testcreatefolder") {
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    if (workspaceFolders) {
+        const workspacePath = workspaceFolders[0].uri; // Get the path of the first workspace folder
+        const newFolderPath = vscode.Uri.joinPath(workspacePath, folderPath); // Create a new Uri for the new folder
+        await vscode.workspace.fs.createDirectory(newFolderPath); // Create the directory if it does not exist
+    }
+    else {
+        vscode.window.showErrorMessage("No workspace folder found. Please open a workspace first.");
+    }
+}
 // base function with which file creation is based upon
 async function createFileBaseFunction(filePath = "testcreatefile/testfile.txt", content) {
     const workspaceFolders = vscode.workspace.workspaceFolders;
@@ -91,20 +103,16 @@ async function getLinesWithNumbers() {
     }
     return textWithLineNumbers;
 }
-function executeCommandLines(actions) {
-    // Join the commands together with &&
-    const command = actions.join(' && ');
-    // Execute the command
-    executeCommandLine(command);
-}
 async function executeCommandLine(action) {
     const { path, contents } = action;
-    // Create a terminal if it doesn't exist
-    const terminal = vscode.window.createTerminal();
+    const terminal = vscode.window.terminals[0] || vscode.window.createTerminal();
     // Change to the specified directory
     terminal.sendText(`cd ${path}`);
-    // Execute the command
-    terminal.sendText(contents);
+    // Execute the command and echo a message
+    const doneMessage = "Command finished executing";
+    terminal.sendText(`${contents} && echo "${doneMessage}"`);
+    // Return a promise that resolves when the done message is printed
+    return;
 }
 async function parseGPTOutput(jsonObject) {
     jsonObject = jsonObject.replace(/```json|```/g, "");
@@ -118,24 +126,37 @@ async function parseGPTOutput(jsonObject) {
         kodemonkey.appendLine(jsonObject);
         return;
     }
-    if (jsonObject["request_for_clarification"] && webviewViewGlobal) {
+    if (jsonObject["request_for_clarification"]) {
         // Assuming `panel` is your WebViewPanel
-        webviewViewGlobal.webview.postMessage({
-            type: "clarification",
-            text: jsonObject["request_for_clarification"]["question"],
-        });
+        if (webviewViewGlobal) {
+            webviewViewGlobal.webview.postMessage({
+                type: "clarification",
+                text: jsonObject["request_for_clarification"]["question"],
+            });
+        }
+        else {
+            kodemonkey.appendLine("Error: webview not found");
+        }
         return;
     }
+    kodemonkey_logs.appendLine("Printing all actions: " + JSON.stringify(jsonObject["actions"]));
     for (let func of jsonObject["actions"]) {
+        kodemonkey_logs.appendLine("Currently parsing this function: " + JSON.stringify(func));
         // Ensure func["path"] ends with a forward slash
-        if (!func["path"].endsWith("/")) {
+        if (!func["path"]) {
+            func["path"] = "./";
+        }
+        else if (func["path"] && !func["path"].endsWith("/")) {
             func["path"] += "/";
         }
         if (func["action"] === "createFolder") {
             kodemonkey.appendLine(`Creating folder at path: ${func["path"] + func["name"]}...`);
-            createFile(func["path"] + func["name"], "");
+            createFolder(func["path"] + func["name"]);
         }
         else if (func["action"] === "createFile") {
+            if (!func["contents"]) {
+                func["contents"] = "";
+            }
             kodemonkey.appendLine(`Creating file at path: ${func["path"] + func["name"]} with contents: ${func["contents"]}...`);
             createFile(func["path"] + func["name"], func["contents"]);
         }
@@ -145,7 +166,7 @@ async function parseGPTOutput(jsonObject) {
         }
         else if (func["action"] === "executeCommandLine") {
             kodemonkey.appendLine(`Executing command line at path: ${func["path"]} with contents: ${func["contents"]}...`);
-            executeCommandLine(func);
+            await executeCommandLine(func);
         }
     }
 }
@@ -204,7 +225,7 @@ async function chat(userInput) {
     const gptOutput = completion.choices[0].message.content;
     if (gptOutput) {
         // prints GPT output to custom output
-        kodemonkey.appendLine("GPT OUTPUT: " + gptOutput);
+        kodemonkey.appendLine("START GPT OUTPUT: " + gptOutput + ": END OUTPUT");
         chatHistory.push({ role: "assistant", content: gptOutput });
         // kodemonkey.appendLine(JSON.stringify(chatHistory));
         // parse response as JSON
