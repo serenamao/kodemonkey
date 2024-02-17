@@ -31,7 +31,10 @@ const vscode = __importStar(require("vscode"));
 const path = __importStar(require("path"));
 const openai_1 = __importDefault(require("openai"));
 let webviewViewGlobal;
-let chatHistory = []; // all message ever
+const agentPrompt = "Pretend you are a product manager telling me how to code a requested app. the app is an expense tracker with react, express, and mongodb. In each response, give me the description of a single step I should implement. I will respond with my intended changes to the code. Only say 2 sentences at a time. ";
+//  message history
+let kodemonkeyChatHistory = [];
+let pmChatHistory = [];
 // custom terminal output channel
 let kodemonkey = vscode.window.createOutputChannel("kodemonkey");
 let kodemonkey_logs = vscode.window.createOutputChannel("kodemonkey_logs");
@@ -103,14 +106,24 @@ async function getLinesWithNumbers() {
     }
     return textWithLineNumbers;
 }
-async function executeCommandLine(action) {
+async function executeCommandLine(action, terminal) {
     const { path, contents } = action;
-    const terminal = vscode.window.terminals[0] || vscode.window.createTerminal();
+    // const terminal = vscode.window.terminals[0] || vscode.window.createTerminal();
     // Change to the specified directory
+    // Get the path of the workspace folder
+    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+    const workspacePath = workspaceFolder?.uri.fsPath;
+    if (workspacePath) {
+        // Change to the workspace directory
+        terminal.sendText(`cd "${workspacePath}"`);
+    }
+    else {
+        console.error('No workspace folder found');
+    }
     terminal.sendText(`cd ${path}`);
     // Execute the command and echo a message
     const doneMessage = "Command finished executing";
-    terminal.sendText(`${contents} && echo "${doneMessage}"`);
+    terminal.sendText(`${contents}`);
     // Return a promise that resolves when the done message is printed
     return;
 }
@@ -140,6 +153,8 @@ async function parseGPTOutput(jsonObject) {
         return;
     }
     kodemonkey_logs.appendLine("Printing all actions: " + JSON.stringify(jsonObject["actions"]));
+    // Create a new terminal with a random name
+    const thisTerminal = vscode.window.createTerminal();
     for (let func of jsonObject["actions"]) {
         kodemonkey_logs.appendLine("Currently parsing this function: " + JSON.stringify(func));
         // Ensure func["path"] ends with a forward slash
@@ -166,10 +181,77 @@ async function parseGPTOutput(jsonObject) {
         }
         else if (func["action"] === "executeCommandLine") {
             kodemonkey.appendLine(`Executing command line at path: ${func["path"]} with contents: ${func["contents"]}...`);
-            await executeCommandLine(func);
+            await executeCommandLine(func, thisTerminal);
         }
     }
 }
+// async function chatTwice(userInput: any) {
+//   // starting from scratch, both just have a system prompt
+//   // hardcode in a first statement from the PM to the AI
+//   // wait for the AI's completion, and then send the AI's completion to the PM. do this whole thing 5 times.
+//   kodemonkey.appendLine("chatting twice with kodemonkey...");
+//   const prompt = `You are an advanced code analysis and action recommendation engine designed to process user inputs regarding software project development. Your capabilities are centered around interpreting project requirements and translating these into specific actions using a predefined API, which includes creating files and folders, modifying file contents, and executing command lines. our interactions are strictly limited to two types of JSON responses: 1) A JSON response containing API function calls for project actions when user inputs are clear and actionable. 2) A JSON response that includes a request for further clarification structured explicitly in JSON format, to ensure compatibility with the software"s processing logic. It is crucial that all responses, without exception, are provided in JSON format to maintain system integrity and ensure automated processing by the software. Under no circumstances should responses deviate from this JSON format, as doing so could disrupt the software"s ability to recognize and execute the provided instructions.
+//   - **Mandatory JSON Format for Clarification Requests**: In instances where the user's input lacks clarity or specificity, and further information is needed to proceed, your response must be in JSON format, explicitly stating the need for clarification. For example:{
+// 	  "request_for_clarification": {
+// 		  "question": "Could you specify the technology stack or framework you are using, and any particular file structure preferences for implementing the requested feature?"
+// 	  }
+//   }
+//   - **JSON Response with API Calls Example**: When instructions are clear and actionable, your response detailing the necessary API function calls should also strictly follow the JSON format, like in this example for creating a specific file structure for a Flask app: {
+// 	  "actions": [
+// 		  {
+// 			  "action": "createFolder",
+// 			  "path": "./",
+// 			  "name": "project_name"
+// 		  },
+// 		  {
+// 			  "action": "createFile",
+// 			  "path": "./project_name",
+// 			  "name": "main.py",
+// 			  "contents": "# Flask app initialization code here"
+// 		  },
+// 		  {
+// 			  "action": "modifyFile",
+// 			  "path": "./project_name",
+// 			  "name": "requirements.txt",
+// 			  "contents": "Flask\n"
+// 		  },
+// 		  {
+// 			  "action": "executeCommandLine",
+// 			  "path": "./project_name",
+// 			  "contents": "pip install -r requirements.txt"
+// 		  }
+// 	  ]
+//   }
+//   For each action, ALWAYS include a path, and always use "contents". This explicit emphasis on JSON-only responses is designed to safeguard against any potential misunderstandings or misinterpretations by ensuring that every interaction with the LLM, including requests for additional information, adheres to a structured and programmatically processable format. Your goal is to seamlessly translate user inputs into a structured set of actions that the software can execute to advance the project development, pivoting between generating actionable tasks and seeking further details as necessary. This approach ensures a direct, efficient pathway from project conception to execution, underpinned by precise, actionable, and executable guidance.`;
+//   kodemonkeyChatHistory = [
+//     {role: "system", content: prompt},
+//     {role: "user", content: "Ask for clarification for what my app is about"}
+//   ]
+//   //TODO
+//   //   kodemonkey.appendLine(prompt);
+//   const completion = await openai.chat.completions.create({
+//     messages: [
+//       {
+//         role: "system",
+//         content: prompt,
+//       },
+//       ...(kodemonkeyChatHistory as any[]),
+//     ],
+//     model: "gpt-4",
+//   });
+//   const gptOutput = completion.choices[0].message.content;
+//   if (gptOutput) {
+//     // prints GPT output to custom output
+//     kodemonkey.appendLine("START GPT OUTPUT: " + gptOutput + ": END OUTPUT");
+//     kodemonkeyChatHistory.push({ role: "assistant", content: gptOutput });
+//     // kodemonkey.appendLine(JSON.stringify(kodemonkeyChatHistory));
+//     // parse response as JSON
+//     parseGPTOutput(gptOutput);
+//     // eval(completion.choices[0].message.content); // RUNS THE CODE
+//     // replaceLine(completion.choices[0].message.content, 0);
+//   }
+//   return completion.choices[0].message.content;
+// }
 async function chat(userInput) {
     kodemonkey.appendLine("chatting with kodemonkey...");
     // const contents = fs.readFileSync(path.join(__dirname, 'prompt.txt'), 'utf8');
@@ -209,8 +291,8 @@ async function chat(userInput) {
 	  ]
   }
   
-  This explicit emphasis on JSON-only responses is designed to safeguard against any potential misunderstandings or misinterpretations by ensuring that every interaction with the LLM, including requests for additional information, adheres to a structured and programmatically processable format. Your goal is to seamlessly translate user inputs into a structured set of actions that the software can execute to advance the project development, pivoting between generating actionable tasks and seeking further details as necessary. This approach ensures a direct, efficient pathway from project conception to execution, underpinned by precise, actionable, and executable guidance.`;
-    chatHistory.push({ role: "user", content: userInput });
+  For each action, ALWAYS include a path, and always use "contents". This explicit emphasis on JSON-only responses is designed to safeguard against any potential misunderstandings or misinterpretations by ensuring that every interaction with the LLM, including requests for additional information, adheres to a structured and programmatically processable format. Your goal is to seamlessly translate user inputs into a structured set of actions that the software can execute to advance the project development, pivoting between generating actionable tasks and seeking further details as necessary. This approach ensures a direct, efficient pathway from project conception to execution, underpinned by precise, actionable, and executable guidance.`;
+    kodemonkeyChatHistory.push({ role: "user", content: userInput });
     //   kodemonkey.appendLine(prompt);
     const completion = await openai.chat.completions.create({
         messages: [
@@ -218,7 +300,7 @@ async function chat(userInput) {
                 role: "system",
                 content: prompt,
             },
-            ...chatHistory,
+            ...kodemonkeyChatHistory,
         ],
         model: "gpt-4",
     });
@@ -226,8 +308,8 @@ async function chat(userInput) {
     if (gptOutput) {
         // prints GPT output to custom output
         kodemonkey.appendLine("START GPT OUTPUT: " + gptOutput + ": END OUTPUT");
-        chatHistory.push({ role: "assistant", content: gptOutput });
-        // kodemonkey.appendLine(JSON.stringify(chatHistory));
+        kodemonkeyChatHistory.push({ role: "assistant", content: gptOutput });
+        // kodemonkey.appendLine(JSON.stringify(kodemonkeyChatHistory));
         // parse response as JSON
         parseGPTOutput(gptOutput);
         // eval(completion.choices[0].message.content); // RUNS THE CODE
@@ -311,7 +393,7 @@ class ColorsViewProvider {
                     break;
                 }
                 case "clear":
-                    chatHistory = [];
+                    kodemonkeyChatHistory = [];
                     break;
             }
         });
