@@ -12,10 +12,26 @@ let chatHistory: any[] = []; // all message ever
 
 // custom terminal output channel
 let kodemonkey = vscode.window.createOutputChannel("kodemonkey");
+let kodemonkey_logs = vscode.window.createOutputChannel("kodemonkey_logs");
+
 
 const openai = new OpenAI({
   apiKey: "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",
 });
+
+async function createFolder(folderPath: string = "testcreatefolder") {
+	const workspaceFolders = vscode.workspace.workspaceFolders;
+	if (workspaceFolders) {
+	  const workspacePath = workspaceFolders[0].uri; // Get the path of the first workspace folder
+	  const newFolderPath = vscode.Uri.joinPath(workspacePath, folderPath); // Create a new Uri for the new folder
+  
+	  await vscode.workspace.fs.createDirectory(newFolderPath); // Create the directory if it does not exist
+	} else {
+	  vscode.window.showErrorMessage(
+		"No workspace folder found. Please open a workspace first."
+	  );
+	}
+  }
 
 // base function with which file creation is based upon
 async function createFileBaseFunction(
@@ -99,9 +115,9 @@ function executeCommandLines(actions: string[]) {
 
   // Execute the command
   executeCommandLine(command);
+
+  return;
 }
-
-
 
 async function executeCommandLine(action: any): Promise<void> {
     const { path, contents } = action;
@@ -153,38 +169,57 @@ async function parseGPTOutput(jsonObject: any) {
 
     return;
   }
-  if (jsonObject["request_for_clarification"] && webviewViewGlobal) {
+  if (jsonObject["request_for_clarification"]) {
     // Assuming `panel` is your WebViewPanel
-    webviewViewGlobal.webview.postMessage({
-      type: "clarification",
-      text: jsonObject["request_for_clarification"]["question"],
-    });
-    return;
+	if (webviewViewGlobal) {
+		webviewViewGlobal.webview.postMessage({
+			type: "clarification",
+			text: jsonObject["request_for_clarification"]["question"],
+		  });
+		  
+	} else {
+		kodemonkey.appendLine("Error: webview not found");
+	}
+	return;
+    
   }
+  kodemonkey_logs.appendLine("Printing all actions: " + JSON.stringify(jsonObject["actions"]));
 
   for (let func of jsonObject["actions"]) {
+    kodemonkey_logs.appendLine("Currently parsing this function: " + JSON.stringify(func));
     // Ensure func["path"] ends with a forward slash
-    if (!func["path"].endsWith("/")) {
+    if (!func["path"]) {
+      func["path"] = "./";
+    }
+    else if (func["path"] && !func["path"].endsWith("/")) {
       func["path"] += "/";
     }
+    if (!func["contents"]) {
+      func["contents"] = "";
+    }
+    
 
     if (func["action"] === "createFolder") {
       kodemonkey.appendLine(
         `Creating folder at path: ${func["path"] + func["name"]}...`
       );
-      createFile(func["path"] + func["name"], "");
+      createFolder(func["path"] + func["name"]);
+
     } else if (func["action"] === "createFile") {
+      
       kodemonkey.appendLine(
         `Creating file at path: ${func["path"] + func["name"]} with contents: ${func["contents"]
         }...`
       );
       createFile(func["path"] + func["name"], func["contents"]);
+
     } else if (func["action"] === "modifyFile") {
       kodemonkey.appendLine(
         `Overwriting file at path: ${func["path"] + func["name"]
         } with contents: ${func["contents"]}...`
       );
       modifyFile(func["path"] + func["name"], func["contents"]);
+
     } else if (func["action"] === "executeCommandLine") {
       kodemonkey.appendLine(
         `HELLO Executing command line at path: ${func["path"]} with contents: ${func["contents"]}...`
@@ -194,6 +229,7 @@ async function parseGPTOutput(jsonObject: any) {
         `GOODBYE...`
       );
     }
+
   }
 }
 
@@ -255,7 +291,7 @@ async function chat(userInput: any) {
   const gptOutput = completion.choices[0].message.content;
   if (gptOutput) {
     // prints GPT output to custom output
-    kodemonkey.appendLine("GPT OUTPUT: " + gptOutput);
+    kodemonkey.appendLine("START GPT OUTPUT: " + gptOutput + ": END OUTPUT");
     chatHistory.push({ role: "assistant", content: gptOutput });
     // kodemonkey.appendLine(JSON.stringify(chatHistory));
 
