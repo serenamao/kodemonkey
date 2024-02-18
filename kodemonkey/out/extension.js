@@ -35,7 +35,7 @@ const child_process_1 = require("child_process");
 const process = __importStar(require("process"));
 const child_process = __importStar(require("child_process"));
 let webviewViewGlobal;
-const agentPrompt = "You are a product manager telling me how to code a requested app. Create a tic tac toe game with React. The last two steps should be to 1) make the app pretty and 2) run it at the end! In each response, give me the description of a single step I should implement. I will respond with my intended changes to the code. Only say 2 sentences at a time. Do not let me get away with submitting incomplete code with a descriptive comment. If I do, please remind me that I need to write the full and complete code.";
+const agentPrompt = "You are a product manager telling me how to code a requested app. Create a simple html, css, js webapp for a todo app with some way of storing changes and hould have the necessary features of an useful todo app. The last two steps should be to 1) make the app pretty and 2) run it at the end! In each response, give me the description of a single step I should implement. I will respond with my intended changes to the code. Only say 2 sentences at a time. Do not let me get away with submitting incomplete code with a descriptive comment. If I do, please remind me that I need to write the full and complete code.";
 //  message history
 let kodemonkeyChatHistory = [];
 let pmChatHistory = [];
@@ -245,10 +245,13 @@ async function parseGPTOutput(jsonObject) {
         else {
             kodemonkey_logs.appendLine("Error: webview not found");
         }
+        kodemonkey.appendLine(`Developer: Hey PM, I need some clarification on your requirements! ${jsonObject["request_for_clarification"]["question"]}`);
         return;
     }
     // Create a new terminal with a random name
     const thisTerminal = vscode.window.createTerminal();
+    kodemonkey.appendLine("Developer: I understand your requirements. I will now proceed to execute the following actions:");
+    let stepCounter = 1;
     for (let func of jsonObject["actions"]) {
         // Ensure func["path"] ends with a forward slash
         if (!func["path"]) {
@@ -262,14 +265,17 @@ async function parseGPTOutput(jsonObject) {
         }
         if (func["action"] === "createFolder") {
             kodemonkey_logs.appendLine(`Creating folder at path: ${func["path"] + func["name"]}...`);
+            kodemonkey.appendLine(`\tStep ${stepCounter}: I'm creating a folder at path: ${func["path"] + func["name"]}`);
             await createFolder(func["path"] + func["name"]);
         }
         else if (func["action"] === "createFile") {
             kodemonkey_logs.appendLine(`Creating file at path: ${func["path"] + func["name"]} with contents: ${func["contents"]}...`);
+            kodemonkey.appendLine(`\tStep ${stepCounter}: I'm creating a file at path: ${func["path"] + func["name"]}`);
             await createFile(func["path"] + func["name"], func["contents"]);
         }
         else if (func["action"] === "modifyFile") {
             kodemonkey_logs.appendLine(`Overwriting file at path: ${func["path"] + func["name"]} with contents: ${func["contents"]}...`);
+            kodemonkey.appendLine(`\tStep ${stepCounter}: I'm overwriting a file at path: ${func["path"] + func["name"]}`);
             await modifyFile(func["path"] + func["name"], func["contents"]);
         }
         else if (func["action"] === "executeCommandLineBlocking" || func["action"] === "executeCommandLine") {
@@ -277,14 +283,18 @@ async function parseGPTOutput(jsonObject) {
             // get concrete path
             const concretePath = func["path"].replace(".", vscode.workspace.workspaceFolders?.[0]?.uri.fsPath);
             kodemonkey_logs.appendLine(`Concrete path: ${concretePath}`);
+            kodemonkey.appendLine(`\tStep ${stepCounter}: I'm executing a command line at path: ${func["path"]} with contents: ${func["contents"]}`);
             await executeCommandLine({ ...func, path: concretePath });
             kodemonkey_logs.appendLine(`GOODBYE...`);
         }
         else if (func["action"] === "executeCommandLineNonBlocking") {
             kodemonkey_logs.appendLine(`Executing command line at path: ${func["path"]} with contents: ${func["contents"]}...`);
+            kodemonkey.appendLine(`\tStep ${stepCounter}: I'm executing a command line at path: ${func["path"]} with contents: ${func["contents"]}`);
             await executeCommandLineNonBlocking(func);
         }
+        stepCounter++;
     }
+    kodemonkey.appendLine("\n");
 }
 async function chatTwice() {
     // starting from scratch, both just have a system prompt
@@ -368,6 +378,8 @@ async function chatTwice() {
             kodemonkey_logs.appendLine("START PM GPT OUTPUT: " + gptOutputPM + ": END OUTPUT");
             kodemonkeyChatHistory.push({ role: "user", content: gptOutputPM });
             pmChatHistory.push({ role: "assistant", content: gptOutputPM });
+            kodemonkey_logs.appendLine("Step " + i + " done");
+            kodemonkey.appendLine("PM: " + gptOutputPM + "\n");
         }
     }
     return "Done";
