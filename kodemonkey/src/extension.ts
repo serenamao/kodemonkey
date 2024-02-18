@@ -8,7 +8,7 @@ import * as process from 'process';
 import * as child_process from 'child_process';
 import * as dotenv from 'dotenv';
 
-const numIterations = 7;
+const numIterations = 20;
 
 
 let webviewViewGlobal: vscode.WebviewView | undefined;
@@ -176,30 +176,46 @@ async function getLinesWithNumbers() {
 }
 
 
+// Keep track of active terminals
+const activeTerminals: vscode.Terminal[] = [];
+
+// Function to execute non-blocking command line commands
 async function executeCommandLineNonBlocking(action: any) {
-  const { path, contents } = action;
+    const { path, contents } = action;
 
-  const terminal = vscode.window.createTerminal();
+    // Check if there are any active terminals for the specified path
+    const activeTerminal = activeTerminals.find((terminal) => terminal.name === path);
 
-  // Change to the specified directory
-  // Get the path of the workspace folder
-  const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-  const workspacePath = workspaceFolder?.uri.fsPath;
+    if (activeTerminal) {
+        // If an active terminal exists, kill it before running the new command
+        activeTerminal.dispose();
+        activeTerminals.splice(activeTerminals.indexOf(activeTerminal), 1);
+    }
 
-  if (workspacePath) {
-    // Change to the workspace directory
-    terminal.sendText(`cd "${workspacePath}"`);
-  } else {
-    console.error('No workspace folder found');
-  }
-  terminal.sendText(`cd ${path}`);
+    const terminal = vscode.window.createTerminal({ name: path });
 
-  // Execute the command and echo a message
-  const doneMessage = "Command finished executing";
-  terminal.sendText(`${contents}`);
+    // Change to the specified directory
+    // Get the path of the workspace folder
+    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+    const workspacePath = workspaceFolder?.uri.fsPath;
 
-  // Return a promise that resolves when the done message is printed
-  return;
+    if (workspacePath) {
+        // Change to the workspace directory
+        terminal.sendText(`cd "${workspacePath}"`);
+    } else {
+        console.error('No workspace folder found');
+    }
+    terminal.sendText(`cd ${path}`);
+
+    // Execute the command and echo a message
+    const doneMessage = "Command finished executing";
+    terminal.sendText(`${contents}`);
+
+    // Add the terminal to the list of active terminals
+    activeTerminals.push(terminal);
+
+    // Return a promise that resolves when the done message is printed
+    return;
 }
 
 
@@ -323,7 +339,7 @@ async function parseGPTOutput(jsonObject: any) {
         type: "clarification",
         text: jsonObject["request_for_clarification"]["question"],
       });
-      kodemonkey.appendLine(`Developer: Quick question: ${jsonObject["request_for_clarification"]["question"]}`);
+      kodemonkey.appendLine(`🐵💻 Dev Monkey: Quick question: ${jsonObject["request_for_clarification"]["question"]}`);
 
     } else {
       kodemonkey_logs.appendLine("Error: webview not found");
@@ -335,7 +351,7 @@ async function parseGPTOutput(jsonObject: any) {
   // Create a new terminal with a random name
   const thisTerminal = vscode.window.createTerminal();
 
-  kodemonkey.appendLine("Developer: Understood! Now I will:");
+  kodemonkey.appendLine("🐵💻 Dev Monkey: Understood! Now I will:");
   let stepCounter = 1;
   for (let func of jsonObject["actions"]) {
     // Ensure func["path"] ends with a forward slash
@@ -415,9 +431,6 @@ async function chatTwice(userPrompt: string) {
     pmChatHistory.push({ role: "system", content: userPrompt });
   }
 
-
-  
-
   for (let i = 0; i < numIterations; i++) {
     const completionKodemonkey = await openai.chat.completions.create({
       messages: [
@@ -459,7 +472,7 @@ async function chatTwice(userPrompt: string) {
       kodemonkeyChatHistory.push({ role: "user", content: gptOutputPM });
       pmChatHistory.push({ role: "assistant", content: gptOutputPM });
       kodemonkey_logs.appendLine("Step " + i + " done");
-      kodemonkey.appendLine("PM: " + gptOutputPM + "\n");
+      kodemonkey.appendLine("🐵📋 PM Monkey: " + gptOutputPM + "\n");
     }
   }
   return "Done";

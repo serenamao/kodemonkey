@@ -35,7 +35,7 @@ const child_process_1 = require("child_process");
 const process = __importStar(require("process"));
 const child_process = __importStar(require("child_process"));
 const dotenv = __importStar(require("dotenv"));
-const numIterations = 7;
+const numIterations = 20;
 let webviewViewGlobal;
 const agentPrompt = "You are a product manager telling me how to code a requested app. If the app has a User Interface, the last two steps should be to 1) make the app pretty and 2) run it at the end! In each response, give me the description of a single step I should implement. I will respond with my intended changes to the code. Only say 2 sentences at a time. You get exactly " + numIterations + " times to prompt me, so prompt wisely. Do not let me get away with submitting incomplete code with a descriptive comment. If I do, please remind me that I need to write the full and complete code.";
 const kodemonkeyPrompt = `You are an advanced code analysis and action recommendation engine with a critical operational mandate: All interactions, including providing recommendations for software project development actions and requests for further clarification from the user, must exclusively use a strict JSON response format. This non-negotiable requirement is in place to ensure seamless integration with an automated software development system, which relies on precise JSON-formatted instructions to create files and folders, modify file contents, and execute command lines. 
@@ -169,9 +169,19 @@ async function getLinesWithNumbers() {
     }
     return textWithLineNumbers;
 }
+// Keep track of active terminals
+const activeTerminals = [];
+// Function to execute non-blocking command line commands
 async function executeCommandLineNonBlocking(action) {
     const { path, contents } = action;
-    const terminal = vscode.window.createTerminal();
+    // Check if there are any active terminals for the specified path
+    const activeTerminal = activeTerminals.find((terminal) => terminal.name === path);
+    if (activeTerminal) {
+        // If an active terminal exists, kill it before running the new command
+        activeTerminal.dispose();
+        activeTerminals.splice(activeTerminals.indexOf(activeTerminal), 1);
+    }
+    const terminal = vscode.window.createTerminal({ name: path });
     // Change to the specified directory
     // Get the path of the workspace folder
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
@@ -187,6 +197,8 @@ async function executeCommandLineNonBlocking(action) {
     // Execute the command and echo a message
     const doneMessage = "Command finished executing";
     terminal.sendText(`${contents}`);
+    // Add the terminal to the list of active terminals
+    activeTerminals.push(terminal);
     // Return a promise that resolves when the done message is printed
     return;
 }
@@ -298,7 +310,7 @@ async function parseGPTOutput(jsonObject) {
                 type: "clarification",
                 text: jsonObject["request_for_clarification"]["question"],
             });
-            kodemonkey.appendLine(`Developer: Quick question: ${jsonObject["request_for_clarification"]["question"]}`);
+            kodemonkey.appendLine(`🐵💻 Dev Monkey: Quick question: ${jsonObject["request_for_clarification"]["question"]}`);
         }
         else {
             kodemonkey_logs.appendLine("Error: webview not found");
@@ -307,7 +319,7 @@ async function parseGPTOutput(jsonObject) {
     }
     // Create a new terminal with a random name
     const thisTerminal = vscode.window.createTerminal();
-    kodemonkey.appendLine("Developer: Understood! Now I will:");
+    kodemonkey.appendLine("🐵💻 Dev Monkey: Understood! Now I will:");
     let stepCounter = 1;
     for (let func of jsonObject["actions"]) {
         // Ensure func["path"] ends with a forward slash
@@ -404,7 +416,7 @@ async function chatTwice(userPrompt) {
             kodemonkeyChatHistory.push({ role: "user", content: gptOutputPM });
             pmChatHistory.push({ role: "assistant", content: gptOutputPM });
             kodemonkey_logs.appendLine("Step " + i + " done");
-            kodemonkey.appendLine("PM: " + gptOutputPM + "\n");
+            kodemonkey.appendLine("🐵📋 PM Monkey: " + gptOutputPM + "\n");
         }
     }
     return "Done";
