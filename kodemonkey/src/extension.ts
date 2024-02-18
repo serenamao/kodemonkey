@@ -469,6 +469,8 @@ async function chat(userInput: any) {
       ...(kodemonkeyChatHistory as any[]),
     ],
     model: "gpt-4",
+    temperature: 0,
+    seed: 1
   });
   const gptOutput = completion.choices[0].message.content;
   if (gptOutput) {
