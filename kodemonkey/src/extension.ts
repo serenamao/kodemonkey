@@ -6,6 +6,7 @@ import { json } from "stream/consumers";
 import { exec } from 'child_process';
 import * as process from 'process';
 import * as child_process from 'child_process';
+import * as dotenv from 'dotenv';
 
 
 let webviewViewGlobal: vscode.WebviewView | undefined;
@@ -76,8 +77,11 @@ let kodemonkey = vscode.window.createOutputChannel("kodemonkey");
 let kodemonkey_logs = vscode.window.createOutputChannel("kodemonkey_logs");
 
 
+// read .env file at path ../.env
+dotenv.config({ path: path.join(__dirname, "../.env") });
+
 const openai = new OpenAI({
-  apiKey: "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",
+    apiKey: process.env.OPENAI_API_KEY,
 });
 
 async function createFolder(folderPath: string = "testcreatefolder") {

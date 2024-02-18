@@ -62,12 +62,9 @@
         "command": "kodemonkey.showWebview",
         "title": "Show Webview"
       }
-      
     ],
     "menus": {
-      "view/title": [
-
-      ]
+      "view/title": []
     }
   },
   "scripts": {
@@ -90,6 +87,7 @@
     "typescript": "^5.3.3"
   },
   "dependencies": {
+    "dotenv": "^16.4.4",
     "openai": "^4.28.0"
   }
 }

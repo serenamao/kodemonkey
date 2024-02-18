@@ -34,6 +34,7 @@ const fs = __importStar(require("fs"));
 const child_process_1 = require("child_process");
 const process = __importStar(require("process"));
 const child_process = __importStar(require("child_process"));
+const dotenv = __importStar(require("dotenv"));
 let webviewViewGlobal;
 const agentPrompt = "You are a product manager telling me how to code a requested app. If the app has a User Interface, the last two steps should be to 1) make the app pretty and 2) run it at the end! In each response, give me the description of a single step I should implement. I will respond with my intended changes to the code. Only say 2 sentences at a time. Do not let me get away with submitting incomplete code with a descriptive comment. If I do, please remind me that I need to write the full and complete code.";
 const kodemonkeyPrompt = `You are an advanced code analysis and action recommendation engine with a critical operational mandate: All interactions, including providing recommendations for software project development actions and requests for further clarification from the user, must exclusively use a strict JSON response format. This non-negotiable requirement is in place to ensure seamless integration with an automated software development system, which relies on precise JSON-formatted instructions to create files and folders, modify file contents, and execute command lines. 
@@ -97,8 +98,10 @@ let pmChatHistory = [];
 let kodemonkey = vscode.window.createOutputChannel("kodemonkey");
 // debug logs
 let kodemonkey_logs = vscode.window.createOutputChannel("kodemonkey_logs");
+// read .env file at path ../.env
+dotenv.config({ path: path.join(__dirname, "../.env") });
 const openai = new openai_1.default({
-    apiKey: "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",
+    apiKey: process.env.OPENAI_API_KEY,
 });
 async function createFolder(folderPath = "testcreatefolder") {
     const workspaceFolders = vscode.workspace.workspaceFolders;
