@@ -342,7 +342,6 @@ async function parseGPTOutput(jsonObject) {
 async function chatTwice(userPrompt) {
     // starting from scratch, both just have a system prompt
     // hardcode in a first statement from the PM to the AI
-    // wait for the AI's completion, and then send the AI's completion to the PM. do this whole thing 5 times.
     kodemonkey_logs.appendLine("chatting twice with kodemonkey...");
     if (kodemonkeyChatHistory.length == 0) {
         // this is the first time we're chatting
@@ -355,7 +354,6 @@ async function chatTwice(userPrompt) {
         kodemonkeyChatHistory.push({ role: "user", content: userPrompt });
         pmChatHistory.push({ role: "system", content: userPrompt });
     }
-    // hard coded 10 back and forths
     for (let i = 0; i < 5; i++) {
         const completionKodemonkey = await openai.chat.completions.create({
             messages: [
