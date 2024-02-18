@@ -328,6 +328,10 @@ async function parseGPTOutput(jsonObject: any) {
       // Extract the fixed JSON from the LLM output
       const fixedJsonString = completion.choices[0].message.content;
       kodemonkey_logs.appendLine("Fixed JSON:" + fixedJsonString);
+      if (fixedJsonString){
+        jsonObject = JSON.parse(fixedJsonString);
+      }
+      
 
     } else {
       kodemonkey_logs.appendLine("No valid JSON found");
@@ -350,8 +354,6 @@ async function parseGPTOutput(jsonObject: any) {
     return;
   }
 
-  // Create a new terminal with a random name
-  const thisTerminal = vscode.window.createTerminal();
 
   kodemonkey.appendLine("🐵💻 Dev Monkey: Understood! Now I will:");
   let stepCounter = 1;
