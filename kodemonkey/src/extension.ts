@@ -209,9 +209,21 @@ async function executeCommandLine(action: any): Promise<void> {
   }
 }
 
+function extractStringBetweenBrackets(inputString: string): string | null {
+  const openBracketIndex = inputString.indexOf('{');
+  const lastClosedBracketIndex = inputString.lastIndexOf('}');
+
+  if (openBracketIndex !== -1 && lastClosedBracketIndex !== -1 && openBracketIndex < lastClosedBracketIndex) {
+      return inputString.substring(openBracketIndex, lastClosedBracketIndex + 1);
+  } else {
+      return null; // Return null if no valid brackets are found
+  }
+}
+
+
 async function parseGPTOutput(jsonObject: any) {
   jsonObject = jsonObject.replace(/```json|```/g, "");
-
+  var jsonString = jsonObject;
   try {
     // Try to parse the JSON string to an object
     jsonObject = JSON.parse(jsonObject);
@@ -220,8 +232,13 @@ async function parseGPTOutput(jsonObject: any) {
 
     kodemonkey.appendLine("Invalid JSON:");
     kodemonkey.appendLine(jsonObject);
-
-    return;
+    jsonString = extractStringBetweenBrackets(jsonString)
+    if (jsonString) {
+      kodemonkey.appendLine("Extracted JSON:" + jsonString);
+    } else {
+      kodemonkey.appendLine("No valid JSON found");
+      return;
+    }
   }
   if (jsonObject["request_for_clarification"]) {
     // Assuming `panel` is your WebViewPanel
