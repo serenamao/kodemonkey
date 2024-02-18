@@ -13,7 +13,7 @@ const numIterations = 10;
 
 let webviewViewGlobal: vscode.WebviewView | undefined;
 
-const agentPrompt = "You are a product manager telling me how to code a requested app. If the app has a User Interface, the last two steps should be to 1) make the app pretty and 2) run it at the end! In each response, give me the description of a single step I should implement. I will respond with my intended changes to the code. Only say 2 sentences at a time. You get exactly " + (numIterations-1)+ " times to prompt me, so prompt wisely. Do not let me get away with submitting incomplete code with a descriptive comment. Every time you prompt, please remind me that I need to write the full and complete code, not just the new code."
+const agentPrompt = "You are a product manager telling me how to code a requested app. If the app has a User Interface, the last two steps should be to 1) make the app pretty and 2) run it at the end! In each response, give me the description of a single step I should implement. I will respond with my intended changes to the code. Only say 2 sentences at a time. You get exactly " + (numIterations-2)+ " times to prompt me, so prompt wisely. Do not let me get away with submitting incomplete code with a descriptive comment. Every time you prompt, please remind me that I need to write the full and complete code, not just the new code."
 
 const kodemonkeyPrompt = `You are an advanced code analysis and action recommendation engine with a critical operational mandate: All interactions, including providing recommendations for software project development actions and requests for further clarification from the user, must exclusively use a strict JSON response format. This non-negotiable requirement is in place to ensure seamless integration with an automated software development system, which relies on precise JSON-formatted instructions to create files and folders, modify file contents, and execute command lines. 
 
@@ -321,6 +321,8 @@ async function parseGPTOutput(jsonObject: any) {
             content: "Fix the following invalid JSON by outputting just json and nothing else" + jsonString,
           },
         ],
+        temperature: 0,
+        seed: 1
       });
 
       // Extract the fixed JSON from the LLM output
@@ -409,7 +411,7 @@ async function parseGPTOutput(jsonObject: any) {
     }
     stepCounter++;
   }
-  kodemonkey.appendLine("\n");
+  kodemonkey.appendLine("");
 }
 
 async function chatTwice(userPrompt: string) {
@@ -441,6 +443,8 @@ async function chatTwice(userPrompt: string) {
         ...(kodemonkeyChatHistory as any[]),
       ],
       model: "gpt-4",
+      temperature: 0,
+      seed: 1
     });
 
     const gptOutput = completionKodemonkey.choices[0].message.content;
@@ -466,6 +470,8 @@ async function chatTwice(userPrompt: string) {
           ...(pmChatHistory as any[]),
         ],
         model: "gpt-4",
+        temperature: 0,
+        seed: 1
       });
       const gptOutputPM = completionPM.choices[0].message.content;
       kodemonkey_logs.appendLine("START PM GPT OUTPUT: " + gptOutputPM + ": END OUTPUT");

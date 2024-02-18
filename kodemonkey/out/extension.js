@@ -37,7 +37,7 @@ const child_process = __importStar(require("child_process"));
 const dotenv = __importStar(require("dotenv"));
 const numIterations = 10;
 let webviewViewGlobal;
-const agentPrompt = "You are a product manager telling me how to code a requested app. If the app has a User Interface, the last two steps should be to 1) make the app pretty and 2) run it at the end! In each response, give me the description of a single step I should implement. I will respond with my intended changes to the code. Only say 2 sentences at a time. You get exactly " + (numIterations - 1) + " times to prompt me, so prompt wisely. Do not let me get away with submitting incomplete code with a descriptive comment. Every time you prompt, please remind me that I need to write the full and complete code, not just the new code.";
+const agentPrompt = "You are a product manager telling me how to code a requested app. If the app has a User Interface, the last two steps should be to 1) make the app pretty and 2) run it at the end! In each response, give me the description of a single step I should implement. I will respond with my intended changes to the code. Only say 2 sentences at a time. You get exactly " + (numIterations - 2) + " times to prompt me, so prompt wisely. Do not let me get away with submitting incomplete code with a descriptive comment. Every time you prompt, please remind me that I need to write the full and complete code, not just the new code.";
 const kodemonkeyPrompt = `You are an advanced code analysis and action recommendation engine with a critical operational mandate: All interactions, including providing recommendations for software project development actions and requests for further clarification from the user, must exclusively use a strict JSON response format. This non-negotiable requirement is in place to ensure seamless integration with an automated software development system, which relies on precise JSON-formatted instructions to create files and folders, modify file contents, and execute command lines. 
 
 Failure to adhere to this JSON-only format will disrupt the automated processing capabilities of the software, potentially leading to system failures or incorrect actions being taken. Therefore, it is imperative that your outputs are meticulously structured in JSON, reflecting either direct action commands using a predefined API or structured requests for additional information when inputs are ambiguous or incomplete.
@@ -293,6 +293,8 @@ async function parseGPTOutput(jsonObject) {
                         content: "Fix the following invalid JSON by outputting just json and nothing else" + jsonString,
                     },
                 ],
+                temperature: 0,
+                seed: 1
             });
             // Extract the fixed JSON from the LLM output
             const fixedJsonString = completion.choices[0].message.content;
@@ -363,7 +365,7 @@ async function parseGPTOutput(jsonObject) {
         }
         stepCounter++;
     }
-    kodemonkey.appendLine("\n");
+    kodemonkey.appendLine("");
 }
 async function chatTwice(userPrompt) {
     // starting from scratch, both just have a system prompt
@@ -390,6 +392,8 @@ async function chatTwice(userPrompt) {
                 ...kodemonkeyChatHistory,
             ],
             model: "gpt-4",
+            temperature: 0,
+            seed: 1
         });
         const gptOutput = completionKodemonkey.choices[0].message.content;
         if (gptOutput) {
@@ -410,6 +414,8 @@ async function chatTwice(userPrompt) {
                     ...pmChatHistory,
                 ],
                 model: "gpt-4",
+                temperature: 0,
+                seed: 1
             });
             const gptOutputPM = completionPM.choices[0].message.content;
             kodemonkey_logs.appendLine("START PM GPT OUTPUT: " + gptOutputPM + ": END OUTPUT");
