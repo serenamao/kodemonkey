@@ -283,33 +283,33 @@ async function parseGPTOutput(jsonObject: any) {
     // Try to parse the JSON string to an object
     jsonObject = JSON.parse(jsonObject);
   } catch (error) {
-  // If an error is thrown, log it and return
-  kodemonkey_logs.appendLine("Invalid JSON:");
-  kodemonkey_logs.appendLine(jsonObject);
-  jsonString = extractStringBetweenBrackets(jsonString)
-  if (jsonString) {
-    kodemonkey_logs.appendLine("Extracted JSON:" + jsonString);
+    // If an error is thrown, log it and return
+    kodemonkey_logs.appendLine("Invalid JSON:");
+    kodemonkey_logs.appendLine(jsonObject);
+    jsonString = extractStringBetweenBrackets(jsonString)
+    if (jsonString) {
+      kodemonkey_logs.appendLine("Extracted JSON:" + jsonString);
 
-    // Create a new instance of the OpenAI LLM
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4",
-      messages: [
-        {
-          role: "system",
-          content: "Fix the following invalid JSON by outputting just json and nothing else" + jsonString,
-        },
-      ],
-    });
+      // Create a new instance of the OpenAI LLM
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4",
+        messages: [
+          {
+            role: "system",
+            content: "Fix the following invalid JSON by outputting just json and nothing else" + jsonString,
+          },
+        ],
+      });
 
-    // Extract the fixed JSON from the LLM output
-    const fixedJsonString = completion.choices[0].message.content;
-    kodemonkey_logs.appendLine("Fixed JSON:" + fixedJsonString);
+      // Extract the fixed JSON from the LLM output
+      const fixedJsonString = completion.choices[0].message.content;
+      kodemonkey_logs.appendLine("Fixed JSON:" + fixedJsonString);
 
-  } else {
-    kodemonkey_logs.appendLine("No valid JSON found");
-    return;
+    } else {
+      kodemonkey_logs.appendLine("No valid JSON found");
+      return;
+    }
   }
-}
   if (jsonObject["request_for_clarification"]) {
     // Assuming `panel` is your WebViewPanel
     if (webviewViewGlobal && jsonObject["request_for_clarification"]["question"]) {
@@ -321,14 +321,16 @@ async function parseGPTOutput(jsonObject: any) {
     } else {
       kodemonkey_logs.appendLine("Error: webview not found");
     }
-    return;
 
+    kodemonkey.appendLine(`Developer: Hey PM, I need some clarification on your requirements! ${jsonObject["request_for_clarification"]["question"]}`);
+    return;
   }
 
   // Create a new terminal with a random name
   const thisTerminal = vscode.window.createTerminal();
 
-
+  kodemonkey.appendLine("Developer: I understand your requirements. I will now proceed to execute the following actions:");
+  let stepCounter = 1;
   for (let func of jsonObject["actions"]) {
     // Ensure func["path"] ends with a forward slash
     if (!func["path"]) {
@@ -341,11 +343,11 @@ async function parseGPTOutput(jsonObject: any) {
       func["contents"] = "";
     }
 
-
     if (func["action"] === "createFolder") {
       kodemonkey_logs.appendLine(
         `Creating folder at path: ${func["path"] + func["name"]}...`
       );
+      kodemonkey.appendLine(`\tStep ${stepCounter}: I'm creating a folder at path: ${func["path"] + func["name"]}`);
       await createFolder(func["path"] + func["name"]);
 
     } else if (func["action"] === "createFile") {
@@ -354,6 +356,7 @@ async function parseGPTOutput(jsonObject: any) {
         `Creating file at path: ${func["path"] + func["name"]} with contents: ${func["contents"]
         }...`
       );
+      kodemonkey.appendLine(`\tStep ${stepCounter}: I'm creating a file at path: ${func["path"] + func["name"]}`);
       await createFile(func["path"] + func["name"], func["contents"]);
 
     } else if (func["action"] === "modifyFile") {
@@ -361,15 +364,17 @@ async function parseGPTOutput(jsonObject: any) {
         `Overwriting file at path: ${func["path"] + func["name"]
         } with contents: ${func["contents"]}...`
       );
+      kodemonkey.appendLine(`\tStep ${stepCounter}: I'm overwriting a file at path: ${func["path"] + func["name"]}`);
       await modifyFile(func["path"] + func["name"], func["contents"]);
 
-    } else if (func["action"] === "executeCommandLineBlocking" || func["action"] === "executeCommandLine" ) {
+    } else if (func["action"] === "executeCommandLineBlocking" || func["action"] === "executeCommandLine") {
       kodemonkey_logs.appendLine(
         `block/nonblok Executing command line at path: ${func["path"]} with contents: ${func["contents"]}...`
       );
       // get concrete path
       const concretePath = func["path"].replace(".", vscode.workspace.workspaceFolders?.[0]?.uri.fsPath);
       kodemonkey_logs.appendLine(`Concrete path: ${concretePath}`);
+      kodemonkey.appendLine(`\tStep ${stepCounter}: I'm executing a command line at path: ${func["path"]} with contents: ${func["contents"]}`);
       await executeCommandLine({ ...func, path: concretePath });
       kodemonkey_logs.appendLine(`GOODBYE...`);
 
@@ -377,10 +382,12 @@ async function parseGPTOutput(jsonObject: any) {
       kodemonkey_logs.appendLine(
         `Executing command line at path: ${func["path"]} with contents: ${func["contents"]}...`
       );
+      kodemonkey.appendLine(`\tStep ${stepCounter}: I'm executing a command line at path: ${func["path"]} with contents: ${func["contents"]}`);
       await executeCommandLineNonBlocking(func);
     }
-
+    stepCounter++;
   }
+  kodemonkey.appendLine("\n");
 }
 
 async function chatTwice(userPrompt: string) {
@@ -445,17 +452,10 @@ async function chatTwice(userPrompt: string) {
       kodemonkey_logs.appendLine("START PM GPT OUTPUT: " + gptOutputPM + ": END OUTPUT");
       kodemonkeyChatHistory.push({ role: "user", content: gptOutputPM });
       pmChatHistory.push({ role: "assistant", content: gptOutputPM });
-
-
-
-
-
+      kodemonkey_logs.appendLine("Step " + i + " done");
+      kodemonkey.appendLine("PM: " + gptOutputPM + "\n");
     }
   }
-
-
-
-
   return "Done";
 }
 
@@ -469,15 +469,15 @@ async function chatTwice(userPrompt: string) {
 //   const prompt = `You are an advanced code analysis and action recommendation engine with a critical operational mandate: All interactions, including providing recommendations for software project development actions and requests for further clarification from the user, must exclusively use a strict JSON response format. This non-negotiable requirement is in place to ensure seamless integration with an automated software development system, which relies on precise JSON-formatted instructions to create files and folders, modify file contents, and execute command lines. 
 
 //   Failure to adhere to this JSON-only format will disrupt the automated processing capabilities of the software, potentially leading to system failures or incorrect actions being taken. Therefore, it is imperative that your outputs are meticulously structured in JSON, reflecting either direct action commands using a predefined API or structured requests for additional information when inputs are ambiguous or incomplete.
-  
+
 //   Your responses will fall into two categories, each requiring a JSON format:
-  
+
 //   1. **Actionable Instructions**: When user inputs are clear, provide a JSON response detailing the specific API function calls needed. For example, creating a file or executing a command line. It's crucial to differentiate between commands that should halt subsequent actions until completion (executeCommandLineBlocking) and those that allow the system to continue running other commands simultaneously (executeCommandLineNonBlocking).
-  
+
 //   2. **Clarification Requests**: In cases where the user's input requires further detail to proceed, your response must also be in JSON, clearly specifying the information needed. This ensures the software remains in a ready state to process and execute commands once clarifications are provided.
-  
+
 //   By strictly adhering to this JSON-only protocol, you play a vital role in maintaining the operational integrity of the software development system, ensuring that all project development actions are executed accurately and efficiently based on user inputs. Below are examples illustrating how to structure both types of responses:
-  
+
 //   **Actionable Instructions Example**:
 //   {
 //       "actions": [
@@ -510,14 +510,14 @@ async function chatTwice(userPrompt: string) {
 //           }
 //       ]
 //   }
-  
+
 //   **Clarification Request Example**:
 //   {
 //       "request_for_clarification": {
 //           "question": "Please specify the technology stack or framework you are using, including any particular preferences for file structure or initial setup requirements."
 //       }
 //   }
-  
+
 //   Remember, the effectiveness of this system relies on your precision and adherence to the JSON-only response format for both executing project development actions and engaging with the user for clarifications. Your strict compliance with this format is crucial for the software’s ability to understand and act upon your recommendations.`;
 
 //   kodemonkeyChatHistory.push({ role: "user", content: userInput });

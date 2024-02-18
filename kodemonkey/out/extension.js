@@ -298,10 +298,13 @@ async function parseGPTOutput(jsonObject) {
         else {
             kodemonkey_logs.appendLine("Error: webview not found");
         }
+        kodemonkey.appendLine(`Developer: Hey PM, I need some clarification on your requirements! ${jsonObject["request_for_clarification"]["question"]}`);
         return;
     }
     // Create a new terminal with a random name
     const thisTerminal = vscode.window.createTerminal();
+    kodemonkey.appendLine("Developer: I understand your requirements. I will now proceed to execute the following actions:");
+    let stepCounter = 1;
     for (let func of jsonObject["actions"]) {
         // Ensure func["path"] ends with a forward slash
         if (!func["path"]) {
@@ -315,14 +318,17 @@ async function parseGPTOutput(jsonObject) {
         }
         if (func["action"] === "createFolder") {
             kodemonkey_logs.appendLine(`Creating folder at path: ${func["path"] + func["name"]}...`);
+            kodemonkey.appendLine(`\tStep ${stepCounter}: I'm creating a folder at path: ${func["path"] + func["name"]}`);
             await createFolder(func["path"] + func["name"]);
         }
         else if (func["action"] === "createFile") {
             kodemonkey_logs.appendLine(`Creating file at path: ${func["path"] + func["name"]} with contents: ${func["contents"]}...`);
+            kodemonkey.appendLine(`\tStep ${stepCounter}: I'm creating a file at path: ${func["path"] + func["name"]}`);
             await createFile(func["path"] + func["name"], func["contents"]);
         }
         else if (func["action"] === "modifyFile") {
             kodemonkey_logs.appendLine(`Overwriting file at path: ${func["path"] + func["name"]} with contents: ${func["contents"]}...`);
+            kodemonkey.appendLine(`\tStep ${stepCounter}: I'm overwriting a file at path: ${func["path"] + func["name"]}`);
             await modifyFile(func["path"] + func["name"], func["contents"]);
         }
         else if (func["action"] === "executeCommandLineBlocking" || func["action"] === "executeCommandLine") {
@@ -330,14 +336,18 @@ async function parseGPTOutput(jsonObject) {
             // get concrete path
             const concretePath = func["path"].replace(".", vscode.workspace.workspaceFolders?.[0]?.uri.fsPath);
             kodemonkey_logs.appendLine(`Concrete path: ${concretePath}`);
+            kodemonkey.appendLine(`\tStep ${stepCounter}: I'm executing a command line at path: ${func["path"]} with contents: ${func["contents"]}`);
             await executeCommandLine({ ...func, path: concretePath });
             kodemonkey_logs.appendLine(`GOODBYE...`);
         }
         else if (func["action"] === "executeCommandLineNonBlocking") {
             kodemonkey_logs.appendLine(`Executing command line at path: ${func["path"]} with contents: ${func["contents"]}...`);
+            kodemonkey.appendLine(`\tStep ${stepCounter}: I'm executing a command line at path: ${func["path"]} with contents: ${func["contents"]}`);
             await executeCommandLineNonBlocking(func);
         }
+        stepCounter++;
     }
+    kodemonkey.appendLine("\n");
 }
 async function chatTwice(userPrompt) {
     // starting from scratch, both just have a system prompt
@@ -389,6 +399,8 @@ async function chatTwice(userPrompt) {
             kodemonkey_logs.appendLine("START PM GPT OUTPUT: " + gptOutputPM + ": END OUTPUT");
             kodemonkeyChatHistory.push({ role: "user", content: gptOutputPM });
             pmChatHistory.push({ role: "assistant", content: gptOutputPM });
+            kodemonkey_logs.appendLine("Step " + i + " done");
+            kodemonkey.appendLine("PM: " + gptOutputPM + "\n");
         }
     }
     return "Done";
