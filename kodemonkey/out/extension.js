@@ -347,7 +347,7 @@ async function chatTwice(userPrompt) {
     if (kodemonkeyChatHistory.length == 0) {
         // this is the first time we're chatting
         kodemonkeyChatHistory = [
-            { role: "user", content: "Ask me two questions. First, what is a one line summary of your app? Second, what tools, technologies, or tech stack are you using? By the way, this is what I want:" + userPrompt }
+            { role: "user", content: "Ask me two questions. First, what is a one line summary of your app? Second, what tools, technologies, or tech stack are you using?" }
         ];
     }
     else {
@@ -361,7 +361,7 @@ async function chatTwice(userPrompt) {
             messages: [
                 {
                     role: "system",
-                    content: kodemonkeyPrompt,
+                    content: kodemonkeyPrompt + " Your final goal is a " + userPrompt,
                 },
                 ...kodemonkeyChatHistory,
             ],
@@ -588,7 +588,7 @@ class ColorsViewProvider {
 			<p>Start your chat here!</p>
 				<form id="myForm">
 				<input type="text" class="user-input" placeholder="What's your question">
-                <button type="submit" class="submit-button">ask BLAH</button>
+                <button type="submit" class="submit-button">ask kodemonkey</button>
 				</form>
 				<button class="clear-button">restart from scratch</button>
 
