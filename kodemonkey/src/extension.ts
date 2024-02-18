@@ -7,10 +7,12 @@ import { exec } from 'child_process';
 import * as process from 'process';
 import * as child_process from 'child_process';
 
+const numIterations = 7;
+
 
 let webviewViewGlobal: vscode.WebviewView | undefined;
 
-const agentPrompt = "You are a product manager telling me how to code a requested app. If the app has a User Interface, the last two steps should be to 1) make the app pretty and 2) run it at the end! In each response, give me the description of a single step I should implement. I will respond with my intended changes to the code. Only say 2 sentences at a time. Do not let me get away with submitting incomplete code with a descriptive comment. If I do, please remind me that I need to write the full and complete code."
+const agentPrompt = "You are a product manager telling me how to code a requested app. If the app has a User Interface, the last two steps should be to 1) make the app pretty and 2) run it at the end! In each response, give me the description of a single step I should implement. I will respond with my intended changes to the code. Only say 2 sentences at a time. You get exactly " + numIterations + " times to prompt me, so prompt wisely. Do not let me get away with submitting incomplete code with a descriptive comment. If I do, please remind me that I need to write the full and complete code."
 
 const kodemonkeyPrompt = `You are an advanced code analysis and action recommendation engine with a critical operational mandate: All interactions, including providing recommendations for software project development actions and requests for further clarification from the user, must exclusively use a strict JSON response format. This non-negotiable requirement is in place to ensure seamless integration with an automated software development system, which relies on precise JSON-formatted instructions to create files and folders, modify file contents, and execute command lines. 
 
@@ -317,19 +319,19 @@ async function parseGPTOutput(jsonObject: any) {
         type: "clarification",
         text: jsonObject["request_for_clarification"]["question"],
       });
+      kodemonkey.appendLine(`Developer: Quick question: ${jsonObject["request_for_clarification"]["question"]}`);
 
     } else {
       kodemonkey_logs.appendLine("Error: webview not found");
     }
 
-    kodemonkey.appendLine(`Developer: Hey PM, I need some clarification on your requirements! ${jsonObject["request_for_clarification"]["question"]}`);
     return;
   }
 
   // Create a new terminal with a random name
   const thisTerminal = vscode.window.createTerminal();
 
-  kodemonkey.appendLine("Developer: I understand your requirements. I will now proceed to execute the following actions:");
+  kodemonkey.appendLine("Developer: Understood! Now I will:");
   let stepCounter = 1;
   for (let func of jsonObject["actions"]) {
     // Ensure func["path"] ends with a forward slash
@@ -412,7 +414,7 @@ async function chatTwice(userPrompt: string) {
 
   
 
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 10; i++) {
     const completionKodemonkey = await openai.chat.completions.create({
       messages: [
         {
