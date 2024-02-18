@@ -365,7 +365,7 @@ async function chatTwice(userPrompt) {
         kodemonkeyChatHistory.push({ role: "user", content: userPrompt });
         pmChatHistory.push({ role: "system", content: userPrompt });
     }
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < numIterations; i++) {
         const completionKodemonkey = await openai.chat.completions.create({
             messages: [
                 {
